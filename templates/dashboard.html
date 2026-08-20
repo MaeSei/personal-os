@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block content %}
+<section class="hero"><div><p class="eye">MISSION CONTROL</p><h1>What needs to move?</h1><p>Keep Today small. Advance workflows by one state. Capture blockers instead of carrying them.</p></div>
+<form class="capture" method="post" action="/items"><input name="title" placeholder="Capture something…" required><input type="hidden" name="state" value="inbox"><button>Inbox</button></form></section>
+<div class="grid">
+<section class="panel"><div class="head"><h2>Today</h2><span>{{today|length}}/3 suggested</span></div>{% for i in today %}{% include "card.html" %}{% else %}<p class="muted">Nothing selected.</p>{% endfor %}</section>
+<section class="panel"><div class="head"><h2>Ready</h2><span>Executable now</span></div>{% for i in ready[:8] %}{% include "card.html" %}{% else %}<p class="muted">No ready items.</p>{% endfor %}</section></div>
+<div class="grid">
+<section class="panel"><div class="head"><h2>Blocked</h2><span>Problems made explicit</span></div>{% for i in blocked %}{% include "card.html" %}{% else %}<p class="muted">Nothing blocked.</p>{% endfor %}</section>
+<section class="panel"><div class="head"><h2>Waiting</h2><span>Off your mental RAM</span></div>{% for i in waiting %}{% include "card.html" %}{% else %}<p class="muted">Nothing waiting.</p>{% endfor %}</section></div>
+<section class="panel"><div class="head"><h2>Active workflows & projects</h2><span>Overview, not a task dump</span></div><div class="cards">{% for i in projects %}{% include "card.html" %}{% endfor %}</div></section>
+<section class="panel"><div class="head"><h2>What changed?</h2><a href="/changes">History</a></div>{% for c in changes %}<div class="change"><strong>{{c.item_title}}</strong><span>{{c.change_type}}{% if c.detail %} · {{c.detail}}{% endif %}</span><small>{{c.created_at.strftime('%Y-%m-%d %H:%M')}}</small></div>{% else %}<p class="muted">No changes yet.</p>{% endfor %}</section>
+<section class="panel"><h2>First run?</h2><form method="post" action="/seed"><button>Load starter data</button></form></section>
+{% endblock %}
