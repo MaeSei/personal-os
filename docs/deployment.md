@@ -45,7 +45,10 @@ runtime dependencies and creates a minimal server in `.next/standalone`.
 `postbuild` runs `scripts/prepare-standalone.mjs`, which copies `public` and
 `.next/static` into that folder because Next.js deliberately leaves those
 assets out of standalone output. `npm start` launches the generated server
-rather than a second build or a custom server.
+rather than a second build or a custom server. The start command explicitly
+binds `HOSTNAME=0.0.0.0`: Railway supplies a container hostname that would
+otherwise override Next.js's public-interface fallback and make the service
+unreachable to its health checker.
 
 The build script explicitly uses Next.js's supported Webpack builder. Next.js
 16 defaults to Turbopack, whose CSS build workers require local socket binding;
@@ -65,7 +68,7 @@ Atlas has no required application variables in this release.
 | Variable | Owner | Required | Purpose |
 | --- | --- | --- | --- |
 | `PORT` | Railway | Yes in Railway | Injected automatically and read by the standalone server. Do not set it in `.env.example`. |
-| `HOSTNAME` | Runtime | No | The standalone server defaults to `0.0.0.0`; override only for a specific self-hosting environment. |
+| `HOSTNAME` | Start script | No manual setup | Fixed to `0.0.0.0` so Railway can reach the standalone server. |
 | `NODE_ENV` | Build/runtime | No manual setup | Next.js and Railway use production mode for the deployed build. |
 
 Future secrets must use server-only names and be configured in Railway's
@@ -82,7 +85,7 @@ No `DATABASE_URL` is defined because this sprint intentionally has no database.
 
 - Railpack detects the Node.js project and installs locked npm dependencies.
 - `npm run build` creates and packages the standalone artifact.
-- `npm start` runs `.next/standalone/server.js` and honors Railway's `PORT`.
+- `npm start` binds to `0.0.0.0`, runs `.next/standalone/server.js`, and honors Railway's `PORT`.
 - The `/` health check prevents an unresponsive deployment from becoming the
   active version.
 - A 120-second health-check window allows a cold Node.js service to start
