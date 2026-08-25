@@ -20,22 +20,22 @@ Those systems remain visible as context and route to their dedicated screens.
 ```text
 Morning orientation
   -> Workspace search
-  -> Planner
+  -> Calendar Workspace
        -> Attention and available time
        -> Suggested and accepted Tasks
+       -> Calendar events + Available Slots
        -> Time Blocks
-  -> Calendar context
   -> Projects
   -> Available Tasks
   -> Inbox
   -> Quick Capture
 ```
 
-The Planner is first in document order, so mobile and assistive technology reach
+The Calendar Workspace is first in document order, so mobile and assistive technology reach
 the primary decision before supporting inventories. At tablet width the screen
-becomes a two-column workspace: plan and Calendar on the left, work context on
-the right. Desktop keeps the same hierarchy with more room rather than adding a
-third navigation layer.
+remains a single readable column. Desktop introduces a two-column workspace:
+the day on the left and work context on the right. Calendar events and genuine
+Available Slots now share the same Day Timeline instead of separate panels.
 
 ## Interaction model
 
@@ -58,7 +58,8 @@ controls. This keeps the overview calm and preserves keyboard precision.
 
 ### Collapse and expand
 
-Planner, Calendar, Projects, Tasks, and Inbox are accessible disclosure panels.
+Calendar Workspace, Projects, Tasks, Inbox, and connection settings are
+accessible disclosure panels.
 Their controls use native buttons with `aria-expanded` and an associated content
 region. Disclosure state is local presentation state and is not persisted.
 
@@ -97,8 +98,9 @@ selection, and disclosure live in React.
 
 - Mobile: one reading column, Planner first, large touch controls, explicit
   scheduling and resize forms.
-- Tablet: plan/context two-column grid with panels independently collapsible.
-- Desktop: the same two-zone model at the 1200px Atlas content boundary, with
+- Tablet: one reading column with the Day Timeline expanding to two internal
+  columns only when controls have enough room.
+- Desktop: a two-zone model at the 1200px Atlas content boundary, with
   generous spacing and no permanent inspector or sidebar navigation.
 
 ## Accessibility
@@ -117,8 +119,8 @@ selection, and disclosure live in React.
   pagination.
 - Multi-select supports the one unambiguous bulk decision: add available Tasks
   to today. Atlas does not infer bulk scheduling times.
-- Calendar events remain read-only context and do not yet reduce available-time
-  arithmetic.
+- Calendar events remain read-only, but accepted busy occurrences now reduce
+  the available-slot and remaining-capacity projections.
 - Inbox is visible but cannot bypass triage, preventing uncategorized thoughts
   from silently becoming Tasks.
 - Resize uses explicit time inputs rather than pointer-only handles. This is

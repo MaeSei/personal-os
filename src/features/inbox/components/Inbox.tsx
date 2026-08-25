@@ -19,7 +19,7 @@ function Inbox() {
         <PageHeader
           action={
             <ButtonLink href="/" variant="secondary">
-              Mission Control
+              Workspace
             </ButtonLink>
           }
           description="Capture first. Decide what it means later."
@@ -37,6 +37,7 @@ function Inbox() {
             areas={inbox.areas}
             deleteItem={inbox.deleteItem}
             error={inbox.error}
+            focusVersion={inbox.focusVersion}
             finishProject={inbox.finishProject}
             isLoading={inbox.isLoading}
             isProcessing={inbox.isProcessing}

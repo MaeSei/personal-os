@@ -24,9 +24,12 @@ function TaskTriageForm({
   const initialValue: TaskEditorValue = {
     areaId: "",
     context: null,
+    contexts: [],
     description: null,
     dueDate: null,
     durationMinutes: null,
+    effort: 3,
+    estimateConfidence: null,
     estimatedDuration: null,
     energyCost: 3,
     projectId: null,

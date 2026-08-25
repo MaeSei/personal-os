@@ -68,6 +68,40 @@ enum PreferredTime {
   @@map("preferred_time")
 }
 
+enum EstimateConfidence {
+  Low
+  Medium
+  High
+
+  @@map("estimate_confidence")
+}
+
+enum CalendarSyncStatus {
+  Idle    @map("IDLE")
+  Syncing @map("SYNCING")
+  Success @map("SUCCESS")
+  Error   @map("ERROR")
+
+  @@map("calendar_sync_status")
+}
+
+enum PlanAssessment {
+  AsPlanned
+  Partly
+  Differently
+
+  @@map("plan_assessment")
+}
+
+enum EstimateAssessment {
+  Accurate
+  Mixed
+  Inaccurate
+  NotEnoughData
+
+  @@map("estimate_assessment")
+}
+
 model Area {
   id          String    @id @db.Text
   title       String    @db.Text
@@ -81,37 +115,39 @@ model Area {
 }
 
 model Item {
-  id                    String             @id @db.Text
-  title                 String             @db.Text
-  description           String?            @db.Text
+  id                    String              @id @db.Text
+  title                 String              @db.Text
+  description           String?             @db.Text
   type                  ItemType
   status                ItemStatus
-  areaId                String?            @map("area_id") @db.Text
-  area                  Area?              @relation(fields: [areaId], references: [id], onDelete: Restrict)
-  attentionScore        Int                @map("attention_score")
-  energyCost            Int                @map("energy_cost")
+  areaId                String?             @map("area_id") @db.Text
+  area                  Area?               @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  attentionScore        Int                 @map("attention_score")
+  energyCost            Int                 @map("energy_cost")
   effort                Int
-  context               String?            @db.Text
-  durationMinutes       Int?               @map("duration_minutes")
-  estimatedDuration     Int?               @map("estimated_duration")
-  preferredContext      String?            @map("preferred_context") @db.Text
-  preferredTime         PreferredTime?     @map("preferred_time")
-  dueDate               DateTime?          @map("due_date") @db.Date
-  scheduledDate         DateTime?          @map("scheduled_date") @db.Date
-  scheduledStart        DateTime?          @map("scheduled_start") @db.Timestamptz(3)
-  scheduledEnd          DateTime?          @map("scheduled_end") @db.Timestamptz(3)
-  parentId              String?            @map("parent_id") @db.Text
-  parent                Item?              @relation("item_hierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children              Item[]             @relation("item_hierarchy")
-  projectId             String?            @map("project_id") @db.Text
-  project               Item?              @relation("project_membership", fields: [projectId], references: [id], onDelete: SetNull)
-  projectTasks          Item[]             @relation("project_membership")
-  sortOrder             Int                @default(0) @map("sort_order")
-  tags                  String[]           @default([])
-  outcome               String?            @db.Text
-  energyLevel           Int?               @map("energy_level")
-  createdAt             DateTime           @map("created_at") @db.Timestamptz(3)
-  updatedAt             DateTime           @map("updated_at") @db.Timestamptz(3)
+  context               String?             @db.Text
+  contexts              String[]            @default([])
+  durationMinutes       Int?                @map("duration_minutes")
+  estimateConfidence    EstimateConfidence? @map("estimate_confidence")
+  estimatedDuration     Int?                @map("estimated_duration")
+  preferredContext      String?             @map("preferred_context") @db.Text
+  preferredTime         PreferredTime?      @map("preferred_time")
+  dueDate               DateTime?           @map("due_date") @db.Date
+  scheduledDate         DateTime?           @map("scheduled_date") @db.Date
+  scheduledStart        DateTime?           @map("scheduled_start") @db.Timestamptz(3)
+  scheduledEnd          DateTime?           @map("scheduled_end") @db.Timestamptz(3)
+  parentId              String?             @map("parent_id") @db.Text
+  parent                Item?               @relation("item_hierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children              Item[]              @relation("item_hierarchy")
+  projectId             String?             @map("project_id") @db.Text
+  project               Item?               @relation("project_membership", fields: [projectId], references: [id], onDelete: SetNull)
+  projectTasks          Item[]              @relation("project_membership")
+  sortOrder             Int                 @default(0) @map("sort_order")
+  tags                  String[]            @default([])
+  outcome               String?             @db.Text
+  energyLevel           Int?                @map("energy_level")
+  createdAt             DateTime            @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime            @map("updated_at") @db.Timestamptz(3)
   planCommitments       DayPlanTask[]
   timeBlockTaskLinks    TimeBlockTask[]
   timeBlockProjectLinks TimeBlockProject[]
@@ -137,11 +173,18 @@ model DayPlan {
 }
 
 model DayPlanTask {
-  dayPlanId String  @map("day_plan_id") @db.Text
-  taskId    String  @map("task_id") @db.Text
-  position  Int
-  dayPlan   DayPlan @relation(fields: [dayPlanId], references: [id], onDelete: Cascade)
-  task      Item    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  dayPlanId           String    @map("day_plan_id") @db.Text
+  taskId              String    @map("task_id") @db.Text
+  position            Int
+  pinned              Boolean   @default(false) @map("is_pinned")
+  focused             Boolean   @default(false) @map("is_focused")
+  groupTitle          String?   @map("group_title") @db.Text
+  focusStartedAt      DateTime? @map("focus_started_at") @db.Timestamptz(3)
+  focusElapsedSeconds Int       @default(0) @map("focus_elapsed_seconds")
+  focusNotes          String?   @map("focus_notes") @db.Text
+  focusChecklist      Json      @default("[]") @map("focus_checklist")
+  dayPlan             DayPlan   @relation(fields: [dayPlanId], references: [id], onDelete: Cascade)
+  task                Item      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@id([dayPlanId, taskId])
   @@index([dayPlanId, position], map: "day_plan_tasks_order_idx")
@@ -203,4 +246,96 @@ model DailyReview {
 
   @@index([date(sort: Desc), createdAt(sort: Desc), id(sort: Desc)], map: "daily_reviews_latest_idx")
   @@map("daily_reviews")
+}
+
+model DailyWrapUp {
+  id                    String             @id @db.Text
+  date                  DateTime           @unique @db.Date
+  planAssessment        PlanAssessment     @map("plan_assessment")
+  estimateAssessment    EstimateAssessment @map("estimate_assessment")
+  notes                 String?            @db.Text
+  plannedTaskCount      Int                @map("planned_task_count")
+  completedTaskCount    Int                @map("completed_task_count")
+  incompleteTaskCount   Int                @map("incomplete_task_count")
+  plannedTimeBlockCount Int                @map("planned_time_block_count")
+  plannedMinutes        Int                @map("planned_minutes")
+  actualFocusSeconds    Int                @map("actual_focus_seconds")
+  calendarEventCount    Int                @map("calendar_event_count")
+  createdAt             DateTime           @map("created_at") @db.Timestamptz(3)
+  tasks                 DailyWrapUpTask[]
+
+  @@index([date(sort: Desc)], map: "daily_wrap_ups_date_idx")
+  @@map("daily_wrap_ups")
+}
+
+model DailyWrapUpTask {
+  wrapUpId                String      @map("wrap_up_id") @db.Text
+  taskId                  String      @map("task_id") @db.Text
+  title                   String      @db.Text
+  completed               Boolean
+  carriedForward          Boolean     @map("carried_forward")
+  estimatedDurationMinutes Int?       @map("estimated_duration_minutes")
+  actualDurationSeconds   Int?        @map("actual_duration_seconds")
+  wrapUp                  DailyWrapUp @relation(fields: [wrapUpId], references: [id], onDelete: Cascade)
+
+  @@id([wrapUpId, taskId])
+  @@map("daily_wrap_up_tasks")
+}
+
+model CalendarConnection {
+  id                    String             @id @db.Text
+  provider              String             @unique @db.Text
+  providerAccountId     String             @map("provider_account_id") @db.Text
+  email                 String             @db.Text
+  encryptedRefreshToken String             @map("encrypted_refresh_token") @db.Text
+  connectedAt           DateTime           @map("connected_at") @db.Timestamptz(3)
+  updatedAt             DateTime           @map("updated_at") @db.Timestamptz(3)
+  lastSyncedAt          DateTime?          @map("last_synced_at") @db.Timestamptz(3)
+  syncStatus            CalendarSyncStatus @default(Idle) @map("sync_status")
+  syncError             String?            @map("sync_error") @db.Text
+  calendars             ConnectedCalendar[]
+
+  @@unique([provider, providerAccountId], map: "calendar_connections_provider_account_key")
+  @@map("calendar_connections")
+}
+
+model ConnectedCalendar {
+  id           String                 @id @db.Text
+  connectionId String                 @map("connection_id") @db.Text
+  externalId   String                 @map("external_id") @db.Text
+  title        String                 @db.Text
+  description  String?                @db.Text
+  color        String?                @db.Text
+  timeZone     String?                @map("time_zone") @db.Text
+  accessRole   String                 @map("access_role") @db.Text
+  primary      Boolean                @default(false)
+  selected     Boolean                @default(false)
+  syncToken    String?                @map("sync_token") @db.Text
+  connection   CalendarConnection     @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  events       CachedCalendarEvent[]
+
+  @@unique([connectionId, externalId], map: "connected_calendars_connection_external_key")
+  @@index([connectionId, selected], map: "connected_calendars_selected_idx")
+  @@map("connected_calendars")
+}
+
+model CachedCalendarEvent {
+  id               String            @id @db.Text
+  calendarId       String            @map("calendar_id") @db.Text
+  externalId       String            @map("external_id") @db.Text
+  title            String            @db.Text
+  description      String?           @db.Text
+  location         String?           @db.Text
+  start            DateTime          @db.Timestamptz(3)
+  end              DateTime          @db.Timestamptz(3)
+  allDay           Boolean           @map("all_day")
+  busy             Boolean
+  recurringEventId String?           @map("recurring_event_id") @db.Text
+  timeZone         String?           @map("time_zone") @db.Text
+  synchronizedAt   DateTime          @map("synchronized_at") @db.Timestamptz(3)
+  calendar         ConnectedCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, externalId], map: "cached_calendar_events_calendar_external_key")
+  @@index([calendarId, start, end], map: "cached_calendar_events_range_idx")
+  @@map("cached_calendar_events")
 }

@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.doctor-dist
 /.test-dist
 
 # next.js

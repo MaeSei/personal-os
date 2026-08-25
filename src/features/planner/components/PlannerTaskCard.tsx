@@ -5,8 +5,11 @@ import { useId, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import type { PlannerTask } from "@/features/contracts/PlannerFeature";
-import { formatDuration } from "@/features/planner/presentation";
+import type {
+  PlannerAvailableSlot,
+  PlannerTask,
+} from "@/features/contracts/PlannerFeature";
+import { formatClockTime, formatDuration } from "@/features/planner/presentation";
 import { cn } from "@/lib/cn";
 import { colorStyles } from "@/theme/colors";
 import { motionStyles } from "@/theme/motion";
@@ -21,10 +24,12 @@ type PlannerTaskCardProps = {
   readonly onMove?: (direction: "down" | "up") => void;
   readonly onRemove?: () => void;
   readonly onSelect?: (selected: boolean) => void;
+  readonly onScheduleSuggested?: () => void;
   readonly onUnschedule?: () => void;
   readonly position?: { readonly current: number; readonly total: number };
   readonly reason?: string;
   readonly selected?: boolean;
+  readonly suggestedPlacement?: PlannerAvailableSlot;
   readonly task: PlannerTask;
 };
 
@@ -36,18 +41,22 @@ function PlannerTaskCard({
   onMove,
   onRemove,
   onSelect,
+  onScheduleSuggested,
   onUnschedule,
   position,
   reason,
   selected = false,
+  suggestedPlacement,
   task,
 }: PlannerTaskCardProps) {
   const [dragging, setDragging] = useState(false);
   const instructionsId = useId();
   const metadata = [
     task.estimatedDuration ? formatDuration(task.estimatedDuration) : "No estimate",
+    `Effort ${task.effort}/5`,
     `Energy ${task.energyCost}/5`,
-    task.preferredContext,
+    task.estimateConfidence ? `${task.estimateConfidence} confidence` : null,
+    task.contexts.length > 0 ? task.contexts.join(", ") : null,
     task.preferredTime ? `Prefers ${task.preferredTime.toLowerCase()}` : null,
     task.dueDate ? `Due ${task.dueDate}` : null,
   ].filter(Boolean);
@@ -117,19 +126,45 @@ function PlannerTaskCard({
               />
             ) : null}
             <div className="min-w-0">
-              <h3 className={cn(typographyStyles.cardTitle, colorStyles.text.primary)}>{task.title}</h3>
+              <h3 className={cn(typographyStyles.cardTitle, colorStyles.text.primary)}>
+                <a
+                  className={colorStyles.focusRing}
+                  draggable={false}
+                  href={`/tasks/${encodeURIComponent(task.id)}`}
+                  onDragStart={(event) => event.stopPropagation()}
+                >
+                  {task.title}
+                </a>
+              </h3>
               <p className={cn(typographyStyles.description, colorStyles.text.muted)}>
                 {task.area.icon} {task.project?.title ?? task.area.title}
                 {task.project ? ` · ${task.project.outcome}` : ""}
               </p>
             </div>
           </div>
-          {position ? <Badge variant="neutral">{position.current}/{position.total}</Badge> : null}
+          <div className="flex shrink-0 flex-wrap justify-end gap-detail">
+            {suggestedPlacement ? (
+              <Badge variant="success">
+                {formatClockTime(suggestedPlacement.start)}–{formatClockTime(suggestedPlacement.end)}
+              </Badge>
+            ) : null}
+            {position ? <Badge variant="neutral">{position.current}/{position.total}</Badge> : null}
+          </div>
         </div>
         <p className={cn(typographyStyles.metricValue, colorStyles.text.muted)}>{metadata.join(" · ")}</p>
         {reason ? <p className={cn(typographyStyles.description, colorStyles.text.accent)}>{reason}</p> : null}
         <div className={spacingStyles.cluster}>
           {onAdd ? <Button disabled={disabled} onClick={onAdd} size="sm">Add to today</Button> : null}
+          {onScheduleSuggested && suggestedPlacement ? (
+            <Button
+              disabled={disabled}
+              onClick={onScheduleSuggested}
+              size="sm"
+              variant="secondary"
+            >
+              Plan at {formatClockTime(suggestedPlacement.start)}
+            </Button>
+          ) : null}
           {onMove ? (
             <>
               <Button aria-keyshortcuts="Alt+ArrowUp" disabled={disabled || position?.current === 1} onClick={() => onMove("up")} size="sm" variant="ghost">Move up</Button>

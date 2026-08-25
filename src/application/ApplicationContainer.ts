@@ -1,5 +1,6 @@
 import { ServiceContainer } from "./ServiceContainer";
 import type { AtlasFeatures } from "@/features/contracts/AtlasFeatures";
+import type { CalendarOAuthFeature } from "@/features/contracts/CalendarFeature";
 import type { RepositoryFactory } from "@/repositories/RepositoryFactory";
 
 type ApplicationContainerOptions = ConstructorParameters<
@@ -8,6 +9,7 @@ type ApplicationContainerOptions = ConstructorParameters<
 
 /** Top-level composition boundary for persistence and application behavior. */
 class ApplicationContainer {
+  readonly calendarOAuth: CalendarOAuthFeature;
   readonly features: AtlasFeatures;
 
   constructor(
@@ -20,6 +22,7 @@ class ApplicationContainer {
     );
 
     this.features = serviceContainer.features;
+    this.calendarOAuth = serviceContainer.calendarOAuth;
   }
 }
 

@@ -1,4 +1,5 @@
 import {
+  AvailabilityService,
   ItemType,
   DEFAULT_PLANNING_SUGGESTION_LIMIT,
   DayPlanStatus,
@@ -13,11 +14,14 @@ import {
   mergeTimeBlocks as mergeDomainTimeBlocks,
   splitTimeBlock as splitDomainTimeBlock,
   setTaskSchedule,
+  TimeBlockType,
   updateDayPlan,
   updateTimeBlock as updateDomainTimeBlock,
   type Area,
+  type AvailabilityCalendarEvent,
   type CalendarDate,
   type DayPlan,
+  type DailyTimeRange,
   type Item,
   type Project,
   type PlanningRulesEngine,
@@ -38,13 +42,20 @@ import type { ItemRepository } from "@/repositories/ItemRepository";
 import type { CalendarProvider } from "@/calendar";
 
 const DEFAULT_AVAILABLE_MINUTES = 8 * 60;
+const DEFAULT_TASK_BLOCK_MINUTES = 30;
+const DEFAULT_WORKING_HOURS: readonly DailyTimeRange[] = [{
+  end: 17 * 60,
+  start: 9 * 60,
+}];
 
 type PlannerContext = {
+  readonly breaks?: readonly DailyTimeRange[];
   readonly currentContext?: string | null;
   readonly locale: string;
   readonly now?: Date;
   readonly timeZone: string;
   readonly userName: string;
+  readonly workingHours?: readonly DailyTimeRange[];
 };
 
 type IdGenerator = () => string;
@@ -113,6 +124,36 @@ function toZonedInstant(
   throw new Error("That local time does not exist in the Day Plan time zone.");
 }
 
+function toLocalMinute(
+  instant: Date,
+  date: CalendarDate,
+  timeZone: string,
+  rounding: "down" | "up",
+): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    minute: "2-digit",
+    month: "2-digit",
+    second: "2-digit",
+    timeZone,
+    year: "numeric",
+  }).formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((entry) => entry.type === type)?.value ?? 0);
+  const localDate = [
+    part("year").toString().padStart(4, "0"),
+    part("month").toString().padStart(2, "0"),
+    part("day").toString().padStart(2, "0"),
+  ].join("-");
+  if (localDate < date) return 0;
+  if (localDate > date) return 24 * 60;
+  const minute = part("hour") * 60 + part("minute");
+  const hasRemainder = part("second") > 0 || instant.getUTCMilliseconds() > 0;
+  return minute + (rounding === "up" && hasRemainder ? 1 : 0);
+}
+
 function isPoolTask(task: Task, projects: readonly Project[]): boolean {
   if (![Status.Active, Status.Today].includes(task.status)) return false;
   const project = getProjectForItem(task, projects);
@@ -139,6 +180,7 @@ class PlannerService implements PlannerFeature {
     private readonly items: ItemRepository,
     private readonly areas: AreaRepository,
     private readonly reviews: DailyReviewRepository,
+    private readonly availability: AvailabilityService,
     private readonly planningRules: PlanningRulesEngine,
     private readonly calendar: CalendarProvider,
     private readonly createId: IdGenerator,
@@ -170,7 +212,7 @@ class PlannerService implements PlannerFeature {
         right.createdAt.getTime() - left.createdAt.getTime() ||
         left.id.localeCompare(right.id),
       );
-    const plan = storedPlan ?? this.createLegacyPlan(date, tasks);
+    const plan = storedPlan ?? this.createEmptyPlan(date);
     const taskById = new Map(tasks.map((task) => [task.id, task]));
     const commitmentTasks = plan.taskIds
       .map((id) => taskById.get(id))
@@ -189,23 +231,40 @@ class PlannerService implements PlannerFeature {
       (total, block) => total + block.end - block.start,
       0,
     );
-    const remainingMinutes = Math.max(DEFAULT_AVAILABLE_MINUTES - plannedMinutes, 0);
+    const availableSlots = this.getAvailableSlots(date, plan, calendar.events);
+    const capacitySlots = this.getAvailableSlots(
+      date,
+      { ...plan, timeBlocks: [] },
+      calendar.events,
+    );
+    const remainingMinutes = availableSlots.reduce(
+      (total, slot) => total + slot.duration,
+      0,
+    );
+    const totalMinutes = capacitySlots.reduce(
+      (total, slot) => total + slot.duration,
+      0,
+    );
     const suggestionLimit = review
       ? Math.min(
           DEFAULT_PLANNING_SUGGESTION_LIMIT,
           Math.max(1, Math.ceil(review.attentionBudget / 35)),
         )
       : DEFAULT_PLANNING_SUGGESTION_LIMIT;
-    const suggestions = this.planningRules.getSuggestions({
-      availableMinutes: remainingMinutes,
+    const suggestions = this.planningRules.getSuggestedPlacements({
+      availableEnergy: review?.energy ?? null,
+      availableSlots,
       currentContext: this.context.currentContext,
       date,
+      dependencies: [],
       excludedTaskIds: [...commitmentIds],
       items: rootItems,
       limit: suggestionLimit,
-    }).flatMap(({ reason, task }) => {
+    }).flatMap(({ duration, end, reason, start, task }) => {
       const plannerTask = plannerTasks.get(task.id);
-      return plannerTask ? [{ reason, task: plannerTask }] : [];
+      return plannerTask
+        ? [{ placement: { duration, end, start }, reason, task: plannerTask }]
+        : [];
     });
 
     return {
@@ -221,8 +280,9 @@ class PlannerService implements PlannerFeature {
       availableTime: {
         plannedMinutes,
         remainingMinutes,
-        totalMinutes: DEFAULT_AVAILABLE_MINUTES,
+        totalMinutes,
       },
+      availableSlots,
       calendar: { ...calendar, timeZone: this.context.timeZone },
       commitments: commitmentTasks.map((task) => plannerTasks.get(task.id)!),
       inbox: inbox.map(({ createdAt, id, title }) => ({ createdAt, id, title })),
@@ -284,6 +344,19 @@ class PlannerService implements PlannerFeature {
     const { plan } = await this.getMutableContext();
     if (plan.status === DayPlanStatus.Started) return this.loadPlanner();
     await this.plans.save(updateDayPlan(plan, { status: DayPlanStatus.Draft }));
+    return this.loadPlanner();
+  }
+
+  async discardDraft() {
+    const { plan, rootItems } = await this.getMutableContext();
+    if (plan.status === DayPlanStatus.Started) {
+      throw new Error("A started day cannot be discarded.");
+    }
+    await this.plans.delete(plan.date);
+    await this.synchronizeTaskSchedules(
+      updateDayPlan(plan, { taskIds: [], timeBlocks: [] }),
+      rootItems,
+    );
     return this.loadPlanner();
   }
 
@@ -364,6 +437,52 @@ class PlannerService implements PlannerFeature {
     await this.persistScheduledPlan(
       updateDayPlan(plan, {
         taskIds: [...plan.taskIds, ...linkedTasks.map(({ id }) => id)],
+        timeBlocks: [...plan.timeBlocks, block],
+      }),
+      rootItems,
+    );
+    return this.loadPlanner();
+  }
+
+  async scheduleTaskInSlot(taskId: string, start: number) {
+    if (!Number.isInteger(start)) {
+      throw new Error("Scheduling requires a whole-minute slot start.");
+    }
+    const date = getCalendarDate(this.context);
+    const { plan, projects, rootItems, tasks } = await this.getMutableContext();
+    const [task] = this.resolveTasks([taskId], tasks, projects);
+    if (plan.timeBlocks.some((block) => block.linkedTasks.includes(task.id))) {
+      throw new Error("This Task is already scheduled. Move its existing Time Block instead.");
+    }
+    const calendar = await this.calendar.getEvents({
+      end: toZonedInstant(date, 24 * 60, this.context.timeZone),
+      start: toZonedInstant(date, 0, this.context.timeZone),
+      timeZone: this.context.timeZone,
+    });
+    const duration = task.estimatedDuration ?? task.durationMinutes ??
+      DEFAULT_TASK_BLOCK_MINUTES;
+    const end = start + duration;
+    const slot = this.getAvailableSlots(date, plan, calendar.events).find(
+      (candidate) => candidate.start <= start && candidate.end >= end,
+    );
+    if (!slot) {
+      throw new Error(
+        `This Task needs ${duration} minutes and does not fit in that available slot.`,
+      );
+    }
+    const block = createDomainTimeBlock(this.createId(), {
+      end,
+      linkedProjects: task.projectId ? [task.projectId] : [],
+      linkedTasks: [task.id],
+      locked: false,
+      notes: null,
+      start,
+      title: task.title,
+      type: TimeBlockType.Focus,
+    });
+    await this.persistScheduledPlan(
+      updateDayPlan(plan, {
+        taskIds: [...plan.taskIds, task.id],
         timeBlocks: [...plan.timeBlocks, block],
       }),
       rootItems,
@@ -532,12 +651,30 @@ class PlannerService implements PlannerFeature {
     return this.loadPlanner();
   }
 
-  private createLegacyPlan(date: CalendarDate, tasks: readonly Task[]): DayPlan {
+  private getAvailableSlots(
+    date: CalendarDate,
+    plan: Pick<DayPlan, "timeBlocks">,
+    calendarEvents: readonly AvailabilityCalendarEvent[],
+  ) {
+    return this.availability.getAvailableSlots({
+      breaks: this.context.breaks ?? [],
+      calendarEvents,
+      date,
+      timeBlocks: plan.timeBlocks,
+      timeZone: this.context.timeZone,
+      workingHours: this.context.workingHours ?? DEFAULT_WORKING_HOURS,
+    }).flatMap((slot) => {
+      const start = toLocalMinute(slot.start, date, this.context.timeZone, "up");
+      const end = toLocalMinute(slot.end, date, this.context.timeZone, "down");
+      return end > start ? [{ duration: end - start, end, start }] : [];
+    });
+  }
+
+  private createEmptyPlan(date: CalendarDate): DayPlan {
     return createDayPlan({
       createdAt: this.context.now ?? new Date(),
       date,
       id: `day-plan-${date}`,
-      taskIds: tasks.filter(({ status }) => status === Status.Today).map(({ id }) => id),
       timeZone: this.context.timeZone,
     });
   }
@@ -548,7 +685,7 @@ class PlannerService implements PlannerFeature {
     const allItems = flattenItems(rootItems);
     const tasks = allItems.filter(isTask);
     const projects = allItems.filter(isProject);
-    const plan = (await this.plans.get(date)) ?? this.createLegacyPlan(date, tasks);
+    const plan = (await this.plans.get(date)) ?? this.createEmptyPlan(date);
     return { plan, projects, rootItems, tasks };
   }
 
@@ -557,6 +694,13 @@ class PlannerService implements PlannerFeature {
     rootItems: readonly Item[],
   ) {
     await this.plans.save(plan);
+    await this.synchronizeTaskSchedules(plan, rootItems);
+  }
+
+  private async synchronizeTaskSchedules(
+    plan: DayPlan,
+    rootItems: readonly Item[],
+  ) {
     const primaryBlocks = new Map<string, DayPlan["timeBlocks"][number]>();
     for (const block of plan.timeBlocks) {
       for (const taskId of block.linkedTasks) {
@@ -663,8 +807,11 @@ class PlannerService implements PlannerFeature {
     return {
       area: { icon: area?.icon ?? "•", id: task.areaId, title: area?.title ?? task.areaId },
       context: task.context ?? null,
+      contexts: [...task.contexts],
       dueDate: task.dueDate ?? null,
+      effort: task.effort,
       energyCost: task.energyCost,
+      estimateConfidence: task.estimateConfidence,
       estimatedDuration: task.estimatedDuration ?? task.durationMinutes ?? null,
       id: task.id,
       project: project
@@ -682,5 +829,10 @@ class PlannerService implements PlannerFeature {
 
 }
 
-export { DEFAULT_AVAILABLE_MINUTES, PlannerService };
+export {
+  DEFAULT_AVAILABLE_MINUTES,
+  DEFAULT_TASK_BLOCK_MINUTES,
+  DEFAULT_WORKING_HOURS,
+  PlannerService,
+};
 export type { PlannerContext };

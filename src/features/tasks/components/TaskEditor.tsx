@@ -3,10 +3,18 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
-import type { Area, EnergyCost, Project, TaskStatus } from "@/domain";
+import type {
+  Area,
+  Effort,
+  EnergyCost,
+  EstimateConfidence,
+  Project,
+  TaskStatus,
+} from "@/domain";
 import { TaskCoreFields } from "@/features/tasks/components/TaskCoreFields";
 import { TaskPlanningFields } from "@/features/tasks/components/TaskPlanningFields";
 import type { TaskEditorValue } from "@/features/tasks/components/types";
+import { cn } from "@/lib/cn";
 import { spacingStyles } from "@/theme/spacing";
 
 type TaskEditorProps = {
@@ -44,19 +52,31 @@ function TaskEditor({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const duration = readOptional(form, "duration");
+    const contexts = [
+      ...form.getAll("contexts").map(String),
+      ...String(form.get("customContexts") ?? "").split(","),
+    ];
 
     await onSubmit({
       areaId,
-      context: readOptional(form, "preferredContext"),
+      context: null,
+      contexts,
       description: readOptional(form, "description"),
       dueDate: readOptional(form, "dueDate"),
       durationMinutes: duration ? Number(duration) : null,
+      effort: Number(form.get("effort")) as Effort,
+      estimateConfidence: readOptional(
+        form,
+        "estimateConfidence",
+      ) as EstimateConfidence | null,
       estimatedDuration: duration ? Number(duration) : null,
       energyCost: Number(form.get("energy")) as EnergyCost,
       projectId: projectId || null,
-      preferredContext: readOptional(form, "preferredContext"),
+      preferredContext: null,
       preferredTime: readOptional(form, "preferredTime") as TaskEditorValue["preferredTime"],
-      scheduledDate: initialValue.scheduledDate,
+      scheduledDate: initialValue.scheduledStart
+        ? initialValue.scheduledDate
+        : readOptional(form, "scheduledDate"),
       status: showStatus
         ? (String(form.get("status")) as TaskStatus)
         : initialValue.status,
@@ -86,7 +106,7 @@ function TaskEditor({
   return (
     <form
       aria-busy={disabled}
-      className={spacingStyles.cardStack}
+      className={cn("@container", spacingStyles.cardStack)}
       onKeyDown={handleKeyDown}
       onSubmit={handleSubmit}
     >

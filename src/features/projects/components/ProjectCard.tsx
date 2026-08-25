@@ -12,15 +12,81 @@ import { colorStyles } from "@/theme/colors";
 import { spacingStyles } from "@/theme/spacing";
 import { typographyStyles } from "@/theme/typography";
 
-type ProjectCardProps = { readonly overview: ProjectOverview };
+type ProjectCardProps = {
+  readonly overview: ProjectOverview;
+  readonly variant?: "compact" | "default";
+};
 
-function ProjectCard({ overview: { area, metrics, project } }: ProjectCardProps) {
+function ProjectCard({
+  overview: { area, metrics, project },
+  variant = "default",
+}: ProjectCardProps) {
   const counts = [
     ["Open", metrics.counts.open],
     ["Done", metrics.counts.completed],
     ["Waiting", metrics.counts.waiting],
     ["Blocked", metrics.counts.blocked],
   ] as const;
+
+  if (variant === "compact") {
+    const compactCounts = [
+      ["Open", metrics.counts.open],
+      ["Waiting", metrics.counts.waiting],
+      ["Blocked", metrics.counts.blocked],
+    ] as const;
+
+    return (
+      <li className="py-card-compact first:pt-0 last:pb-0">
+        <a
+          className={cn(
+            "block",
+            spacingStyles.detailStack,
+            colorStyles.focusRing,
+          )}
+          href={`/projects/${project.id}`}
+        >
+          <span className="flex items-start justify-between gap-cluster">
+            <span className={typographyStyles.metricLabel}>{project.title}</span>
+            <ProjectStatusBadge status={project.status} />
+          </span>
+          <span
+            className={cn(
+              "block",
+              typographyStyles.description,
+              colorStyles.text.muted,
+            )}
+          >
+            {project.outcome}
+          </span>
+          <span className="grid grid-cols-[1fr_auto] items-center gap-cluster">
+            <progress
+              className="h-2 w-full accent-accent"
+              max={100}
+              value={metrics.progress}
+            >
+              {metrics.progress}%
+            </progress>
+            <span className={typographyStyles.metricValue}>
+              {metrics.progress}%
+            </span>
+          </span>
+          <span
+            className={cn(
+              "flex flex-wrap gap-cluster",
+              typographyStyles.description,
+              colorStyles.text.muted,
+            )}
+          >
+            {compactCounts.map(([label, value]) => (
+              <span key={label}>
+                {label} {value}
+              </span>
+            ))}
+          </span>
+        </a>
+      </li>
+    );
+  }
 
   return (
     <li>

@@ -1,6 +1,14 @@
 import type { Area, AreaId } from "./Area";
 import type { Item } from "./Item";
-import type { Project, ProjectStatus } from "./Project";
+import { isProject, type Project, type ProjectStatus } from "./Project";
+import {
+  getProjectArtifacts,
+  getProjectTaskGroups,
+  isProjectMilestone,
+  type ProjectMilestone,
+  type ProjectNote,
+  type ProjectTaskGroup,
+} from "./ProjectArtifacts";
 import { Status } from "./Status";
 import { isTask, type Task } from "./Task";
 
@@ -26,7 +34,12 @@ type ProjectMetrics = {
   readonly estimatedRemainingMinutes: number;
   readonly lastActivity: Date;
   readonly progress: number;
+  readonly progressSource: "milestones" | "tasks";
   readonly remainingEffort: number;
+  readonly milestoneCounts: {
+    readonly completed: number;
+    readonly total: number;
+  };
   readonly scheduledWork: {
     readonly count: number;
     readonly nextDate: string | null;
@@ -41,13 +54,22 @@ type ProjectOverview = {
 
 type ProjectTimelineEntry = {
   readonly date: string;
-  readonly kind: "due" | "scheduled";
-  readonly task: Task;
+  readonly item: ProjectMilestone | Task;
+  readonly kind:
+    | "due"
+    | "milestone-completed"
+    | "milestone-due"
+    | "scheduled"
+    | "task-completed";
 };
 
 type ProjectDetail = ProjectOverview & {
   readonly blockedTasks: readonly Task[];
   readonly completedTasks: readonly Task[];
+  readonly milestones: readonly ProjectMilestone[];
+  readonly notes: readonly ProjectNote[];
+  readonly relatedProjects: readonly Project[];
+  readonly taskGroups: readonly ProjectTaskGroup[];
   readonly taskRoots: readonly Task[];
   readonly timeline: readonly ProjectTimelineEntry[];
   readonly unscheduledTasks: readonly Task[];
@@ -78,17 +100,7 @@ function getProjectTaskRoots(
   project: Project,
   items: readonly Item[],
 ): readonly Task[] {
-  const children = project.children.filter(isTask);
-  const childIds = new Set(flattenTasks(children).map((task) => task.id));
-  const flatTasks = flattenItems(items).filter(
-    (item): item is Task =>
-      isTask(item) &&
-      !childIds.has(item.id) &&
-      (item.projectId === project.id ||
-        (item.projectId === null && item.parentId === project.id)),
-  );
-
-  return [...children, ...flatTasks];
+  return getProjectTaskGroups(project, items).flatMap(({ tasks }) => tasks);
 }
 
 function isOpen(task: Task): boolean {
@@ -96,6 +108,10 @@ function isOpen(task: Task): boolean {
 }
 
 function calculateMetrics(project: Project, tasks: readonly Task[]): ProjectMetrics {
+  const milestones = project.children.filter(isProjectMilestone);
+  const completedMilestones = milestones.filter(
+    (milestone) => milestone.status === Status.Completed,
+  ).length;
   const visibleTasks = tasks.filter((task) => task.status !== Status.Archived);
   const openTasks = visibleTasks.filter(isOpen);
   const completed = visibleTasks.filter(
@@ -124,10 +140,16 @@ function calculateMetrics(project: Project, tasks: readonly Task[]): ProjectMetr
       0,
     ),
     lastActivity: new Date(lastActivity.getTime()),
-    progress:
-      visibleTasks.length === 0
+    milestoneCounts: {
+      completed: completedMilestones,
+      total: milestones.length,
+    },
+    progress: milestones.length > 0
+      ? Math.round((completedMilestones / milestones.length) * 100)
+      : visibleTasks.length === 0
         ? 0
         : Math.round((completed / visibleTasks.length) * 100),
+    progressSource: milestones.length > 0 ? "milestones" : "tasks",
     remainingEffort: openTasks.reduce((total, task) => total + task.effort, 0),
     scheduledWork: {
       count: scheduled.length,
@@ -195,19 +217,39 @@ function buildProjectDetail(
 ): ProjectDetail {
   const taskRoots = getProjectTaskRoots(project, items);
   const tasks = flattenTasks(taskRoots);
+  const projects = items.filter(isProject);
+  const artifacts = getProjectArtifacts(project, projects);
   const timeline = tasks.flatMap((task): ProjectTimelineEntry[] => [
     ...(task.scheduledDate
-      ? [{ date: task.scheduledDate, kind: "scheduled" as const, task }]
+      ? [{ date: task.scheduledDate, item: task, kind: "scheduled" as const }]
       : []),
     ...(task.dueDate
-      ? [{ date: task.dueDate, kind: "due" as const, task }]
+      ? [{ date: task.dueDate, item: task, kind: "due" as const }]
       : []),
-  ]).sort((left, right) => left.date.localeCompare(right.date));
+    ...(task.status === Status.Completed
+      ? [{ date: task.updatedAt.toISOString().slice(0, 10), item: task, kind: "task-completed" as const }]
+      : []),
+  ]).concat(artifacts.milestones.flatMap((milestone): ProjectTimelineEntry[] => [
+    ...(milestone.dueDate
+      ? [{ date: milestone.dueDate, item: milestone, kind: "milestone-due" as const }]
+      : []),
+    ...(milestone.status === Status.Completed
+      ? [{
+          date: milestone.updatedAt.toISOString().slice(0, 10),
+          item: milestone,
+          kind: "milestone-completed" as const,
+        }]
+      : []),
+  ])).sort((left, right) => left.date.localeCompare(right.date));
 
   return {
     ...buildProjectOverview(project, items, areas),
     blockedTasks: tasks.filter((task) => task.status === Status.Blocked),
     completedTasks: tasks.filter((task) => task.status === Status.Completed),
+    milestones: artifacts.milestones,
+    notes: artifacts.notes,
+    relatedProjects: artifacts.relatedProjects,
+    taskGroups: getProjectTaskGroups(project, items),
     taskRoots,
     timeline,
     unscheduledTasks: tasks.filter(

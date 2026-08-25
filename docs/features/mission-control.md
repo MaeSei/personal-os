@@ -4,6 +4,10 @@
 **Date:** 2026-08-24
 **Status:** Product and interaction specification only. This document does not prescribe implementation.
 
+> **Sprint 7.1 implementation note:** Workspace supersedes Mission Control as
+> Atlas's primary route. This specification remains historical design input;
+> see `docs/features/workspace.md` for the implemented foundation.
+
 ## Purpose
 
 Mission Control is Atlas's home and the first view of the user's day. It should answer one question:

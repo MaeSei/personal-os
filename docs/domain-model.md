@@ -29,15 +29,45 @@ A valid Task always has:
 Tasks may also carry planning metadata:
 
 - `estimatedDuration`, a positive whole-number estimate;
-- `preferredContext`, a short place or tool preference;
+- `effort`, the estimated amount or complexity of work on a 1–5 scale;
+- `energyCost`, the estimated personal demand on a separate 1–5 scale;
+- `estimateConfidence`, optionally Low, Medium, or High;
+- `contexts`, zero or more built-in or custom places/tools where work can run;
 - `preferredTime`, one of Anytime, Morning, Afternoon, or Evening;
 - `scheduledStart` and `scheduledEnd`, an optional paired primary allocation;
 - `dueDate`, a deadline calendar day;
 - `scheduledDate`, an intended-work calendar day.
 
-`durationMinutes` and `context` remain compatibility fields during migration.
-New UI and application flows use the canonical estimate and preference names.
+`durationMinutes`, `context`, and `preferredContext` remain compatibility fields
+during migration. The first normalized context populates both single-value
+fields. New UI and application flows use the canonical estimate and context set.
 Preferred values are advisory and never create a schedule automatically.
+
+### Daily commitment metadata
+
+A Task does not become part of today's work because its status or schedule
+matches the date. Daily membership is an explicit `DayPlan` commitment. The
+commitment owns its persisted position, daily pin, optional group title,
+current-focus flag, and Focus Session. A session contains accumulated seconds,
+an optional running-segment start, working notes, and ordered lightweight
+checklist steps. These values remain outside `Task` because they express the
+user's execution context for one calendar date, not durable properties of the
+work. Checklist steps are deliberately not child Tasks.
+
+One plan can have at most one focused commitment. Selecting it starts a draft
+plan so Focus Session can consume the same accepted order. Switching pauses any
+running segment before choosing another commitment. Removing a commitment does
+not delete the Task; Archive remains a separate global Task status change.
+
+These four values form the current Effort Model. Confidence is nullable because
+Atlas does not infer certainty for the user. The model stores neither actuals
+nor revisions and performs no estimate analysis. See `docs/effort-model.md`.
+
+Context names normalize and deduplicate in the pure Context Engine. The built-in
+set is Computer, Phone, Home, RV, Lab, Errands, Calls, and Anywhere; custom
+strings use the same Task field rather than a parallel model. Workspace filters
+combine context with Area, optional Project, maximum energy, maximum duration,
+and status. See `docs/context-engine.md`.
 
 Exact Task scheduling is owned by a linked Time Block. `scheduledStart` and
 `scheduledEnd` are a synchronized projection of the earliest linked block in
@@ -49,7 +79,7 @@ Due and legacy scheduled dates use the date-only `YYYY-MM-DD` form. They are del
 timestamps because a calendar day must not move when a device changes time
 zone. Exact scheduled boundaries are real instants projected from the Day
 Plan's date, local minutes, and time zone. Estimated duration does not overwrite
-the existing 1–5 `effort` scale, and preferences do not change attention
+the 1–5 estimated `effort` scale, and preferences do not change attention
 scoring or schedule work automatically.
 
 `createTask` is the canonical constructor. It validates identity and Area,
@@ -104,7 +134,7 @@ Project remains a first-class `Item` refinement with:
 - Project-specific status and energy fields;
 - zero or more Task actions.
 
-Projects are containers and never appear directly in Today or Focus Mode.
+Projects are containers and never appear directly in Today or Focus Session.
 `createProject` accepts an optional first next action. When supplied, it creates
 that action through `createTask`, assigns the Project Area, and sets both Task
 relationship fields. When omitted, it creates a valid Project with no Tasks.
@@ -119,10 +149,29 @@ Project status controls whether its Tasks can be projected as next actions. An
 inactive Project contributes no focus candidate.
 
 Project workspace values such as progress, status counts, scheduled work,
-remaining effort, and last activity are derived from current Tasks by
-`ProjectWorkspace.ts`. They are not persisted on Project and therefore cannot
+remaining effort, and last activity are derived from current Tasks and
+Milestones by `ProjectWorkspace.ts`. They are not persisted on Project and therefore cannot
 become stale denormalized fields. Task-tree commands preserve Project child
 order because that order controls next-action selection.
+
+### Project context Items
+
+Milestones, lightweight Project notes, and related-Project markers remain
+Items rather than separate top-level aggregates:
+
+- a Milestone is a namespaced Workflow Item with optional due date and Active
+  or Completed status;
+- a Project note is a namespaced Reference Item whose description holds its
+  plain-text body;
+- pinning is a namespaced note tag;
+- a related-Project edge is a namespaced Reference Item, written symmetrically
+  so both Projects expose the same contextual relationship.
+
+Milestones may contain root Tasks as one shallow grouping level. The Task keeps
+its required Area and explicit Project ID. Moving between groups changes only
+tree placement; deleting a Milestone promotes its Tasks rather than deleting
+work. Only valid Tasks remain actionable, so context Items never enter Today,
+Focus, or Planning Rules.
 
 ## Actionability and focus planning
 
@@ -131,7 +180,7 @@ Only a valid Task with `status: Today` is actionable.
 This deliberately excludes Projects and non-Task Items even if older data gives
 them a Today status. The Attention Engine therefore ranks concrete work only.
 
-Blocked work follows the same boundary: Mission Control and Focus Mode show
+Blocked work follows the same boundary: Mission Control and Focus Session show
 blocked Tasks, not blocked Projects or arbitrary Items.
 
 `NextActionCalculator` applies these rules:
@@ -236,6 +285,7 @@ Repositories retain only aggregate persistence operations:
 - `ItemRepository.get/save`
 - `AreaRepository.get/save`
 - `DailyReviewRepository.get/getHistory/save`
+- `DailyWrapUpRepository.get/save`
 
 They serialize and migrate data but do not decide what counts as a Task,
 Project, Inbox view, or focus candidate.
@@ -244,12 +294,20 @@ Application services own use cases:
 
 - `InboxService` captures Ideas, validates triage commands, replaces or removes
   Inbox Items, and optionally adds a first Project Task.
-- `ProjectService` creates Projects/initial Tasks, derives workspace views, and
-  owns Task create/edit/delete/reorder/assignment commands.
+- `ProjectService` creates Projects/initial Tasks and derives Project workspace
+  views. Its compatibility Task methods delegate to `TaskService`.
+- `TaskService` owns Task detail, create/edit/delete/reorder/assignment,
+  duplicate, detach, and Task-to-Project conversion commands.
 - `BreakdownService` batch-creates ordered Task drafts behind a replaceable
   manual/AI-capable application contract.
-- `FocusService` completes Tasks and builds Focus Mode.
+- `FocusService` completes Tasks and builds Focus Session.
 - `MissionControlService` derives Inbox count, Projects, blockers, and focus.
+
+Task-to-Project conversion creates a new Project identity and removes the old
+Task. This prevents persisted Day Plan or Time Block Task references from
+silently changing meaning. Nested Tasks keep their identities and are rehomed
+under the replacement Project. Duplication is deliberately shallow and clears
+scheduling so one reservation is never copied into two Tasks.
 
 This separation keeps the domain rules reusable independently of PostgreSQL.
 
@@ -264,6 +322,20 @@ Completing another review never replaces an earlier review, including when two
 reviews share one date. Latest review is a repository query over historical
 records; the Attention Engine continues to consume that latest result, so focus
 behavior remains compatible while history becomes available for future trends.
+
+## Daily Wrap-Up
+
+`DailyWrapUp` is the immutable evening counterpart to the morning capacity
+review. One aggregate per `CalendarDate` stores `PlanAssessment`,
+`EstimateAssessment`, optional notes, calculated completion/time metrics, and
+historical Task evidence. Each Task snapshot keeps its title, completed flag,
+estimate, available Focus Session actual duration, and explicit carry-forward
+choice.
+
+The aggregate does not own Task lifecycle or scheduling. Carry-forward is an
+application use case that adds selected unfinished Task identities to
+tomorrow's Draft Day Plan without changing their status or creating Time
+Blocks. See `docs/daily-wrap-up.md` for the full evidence boundary.
 
 ## Compatibility limits
 

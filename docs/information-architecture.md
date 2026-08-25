@@ -4,6 +4,11 @@
 **Date:** 2026-08-24
 **Status:** Product structure only. This document does not prescribe routes, components, persistence, or implementation sequence.
 
+> **Sprint 7.1 implementation note:** Workspace now replaces Mission Control at
+> the root route. The Mission Control model below remains the design lineage;
+> current runtime boundaries and the three-region Workspace are documented in
+> `docs/current-architecture.md` and `docs/features/workspace.md`.
+
 ## Purpose
 
 Atlas is a private attention operating system for one person. Its information architecture should make four questions easy to answer:

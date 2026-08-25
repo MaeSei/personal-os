@@ -9,6 +9,11 @@ class MockDayPlanRepository implements DayPlanRepository {
     plans.forEach((plan) => this.plans.set(plan.date, plan));
   }
 
+  delete(date: CalendarDate): Promise<void> {
+    this.plans.delete(date);
+    return Promise.resolve();
+  }
+
   get(date: CalendarDate): Promise<DayPlan | null> {
     return Promise.resolve(this.plans.get(date) ?? null);
   }

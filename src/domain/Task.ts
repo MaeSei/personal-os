@@ -7,6 +7,11 @@ import {
   type ItemId,
 } from "./Item";
 import { Status } from "./Status";
+import { normalizeContexts } from "./ContextEngine";
+import {
+  isEstimateConfidence,
+  type EstimateConfidence,
+} from "./EffortModel";
 
 enum PreferredTime {
   Anytime = "Anytime",
@@ -20,8 +25,10 @@ const preferredTimes = Object.values(PreferredTime);
 type Task = Item & {
   readonly areaId: AreaId;
   readonly context?: string | null;
+  readonly contexts: readonly string[];
   readonly dueDate?: CalendarDate | null;
   readonly durationMinutes?: number | null;
+  readonly estimateConfidence: EstimateConfidence | null;
   readonly estimatedDuration: number | null;
   readonly preferredContext: string | null;
   readonly preferredTime: PreferredTime | null;
@@ -46,10 +53,12 @@ type CreateTaskInput = {
   readonly areaId: AreaId;
   readonly attentionScore?: AttentionScore;
   readonly context?: string | null;
+  readonly contexts?: readonly string[];
   readonly createdAt: Date;
   readonly description?: string | null;
   readonly dueDate?: CalendarDate | null;
   readonly durationMinutes?: number | null;
+  readonly estimateConfidence?: EstimateConfidence | null;
   readonly estimatedDuration?: number | null;
   readonly effort?: Effort;
   readonly energyCost?: EnergyCost;
@@ -179,9 +188,13 @@ function createTask(input: CreateTaskInput): Task {
   const estimatedDuration = normalizeDuration(
     input.estimatedDuration ?? input.durationMinutes,
   );
-  const preferredContext = (
-    input.preferredContext ?? input.context
-  )?.trim() || null;
+  const estimateConfidence = input.estimateConfidence ?? null;
+  const contexts = normalizeContexts(
+    input.contexts === undefined
+      ? [input.preferredContext, input.context]
+      : input.contexts,
+  );
+  const preferredContext = contexts[0] ?? null;
   const preferredTime = input.preferredTime ?? null;
   const [scheduledStart, scheduledEnd] = normalizeSchedule(
     input.scheduledStart,
@@ -190,6 +203,12 @@ function createTask(input: CreateTaskInput): Task {
 
   if (!isWorkLevel(energyCost) || !isWorkLevel(effort)) {
     throw new Error("Task energy and effort must be between 1 and 5.");
+  }
+  if (
+    estimateConfidence !== null &&
+    !isEstimateConfidence(estimateConfidence)
+  ) {
+    throw new Error("A Task requires a supported estimate confidence.");
   }
 
   if (!isTaskStatus(status)) {
@@ -206,10 +225,12 @@ function createTask(input: CreateTaskInput): Task {
     attentionScore: clampAttentionScore(input.attentionScore ?? 50),
     children: [],
     context: preferredContext,
+    contexts,
     createdAt,
     description: input.description?.trim() || null,
     dueDate: normalizeCalendarDate(input.dueDate, "due date"),
     durationMinutes: estimatedDuration,
+    estimateConfidence,
     estimatedDuration,
     effort,
     energyCost,

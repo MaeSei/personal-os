@@ -14,6 +14,13 @@ import { typographyStyles } from "@/theme/typography";
 type ProjectHeroProps = { readonly detail: ProjectDetail };
 
 function ProjectHero({ detail: { area, metrics, project } }: ProjectHeroProps) {
+  const progressLabel = metrics.progressSource === "milestones"
+    ? "Milestone progress"
+    : "Task completion evidence";
+  const progressValue = metrics.progressSource === "milestones"
+    ? `${metrics.milestoneCounts.completed} of ${metrics.milestoneCounts.total}`
+    : `${metrics.counts.completed} completed`;
+
   return (
     <Card as="article" padding="lg">
       <div className={spacingStyles.cardStack}>
@@ -33,8 +40,8 @@ function ProjectHero({ detail: { area, metrics, project } }: ProjectHeroProps) {
         </header>
         <div>
           <div className="flex justify-between gap-cluster">
-            <span className={typographyStyles.metricLabel}>Progress</span>
-            <span className={typographyStyles.metricValue}>{metrics.progress}%</span>
+            <span className={typographyStyles.metricLabel}>{progressLabel}</span>
+            <span className={typographyStyles.metricValue}>{progressValue}</span>
           </div>
           <progress className="mt-detail h-2 w-full accent-accent" max={100} value={metrics.progress}>{metrics.progress}%</progress>
         </div>

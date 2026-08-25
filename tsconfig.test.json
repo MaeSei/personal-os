@@ -12,11 +12,22 @@
     "target": "ES2022"
   },
   "include": [
+    "scripts/atlas-doctor.ts",
+    "scripts/atlas-doctor/**/*.ts",
+    "scripts/check-database-config.ts",
+    "src/server/config/databaseConfig.ts",
     "src/application/InboxService.ts",
     "src/application/BreakdownService.ts",
     "src/application/CalendarService.ts",
     "src/application/ProjectService.ts",
+    "src/application/TaskService.ts",
+    "src/application/WorkspaceService.ts",
     "src/application/PlannerService.ts",
+    "src/application/WrapUpService.ts",
+    "src/application/AnalyticsService.ts",
+    "src/application/PatternService.ts",
+    "src/application/RecommendationService.ts",
+    "src/ai/**/*.ts",
     "src/calendar/**/*.ts",
     "src/domain/**/*.ts",
     "src/repositories/AreaRepository.ts",
@@ -24,6 +35,8 @@
     "src/repositories/DayPlanRepository.ts",
     "src/repositories/MockDayPlanRepository.ts",
     "src/repositories/MockItemRepository.ts",
+    "src/repositories/DailyWrapUpRepository.ts",
+    "src/repositories/MockDailyWrapUpRepository.ts",
     "tests/**/*.ts"
   ]
 }

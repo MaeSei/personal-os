@@ -24,7 +24,7 @@ function ProjectOverview({
     <PageContainer>
       <div className={spacingStyles.pageStack}>
         <PageHeader
-          action={<ButtonLink href="/" variant="secondary">Mission Control</ButtonLink>}
+          action={<ButtonLink href="/" variant="secondary">Workspace</ButtonLink>}
           description="Outcomes, progress, and the work that moves them forward."
           eyebrow="Projects"
           title="Keep larger work visible."

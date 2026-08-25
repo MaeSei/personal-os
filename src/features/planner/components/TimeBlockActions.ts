@@ -13,6 +13,7 @@ type TimeBlockActions = {
   readonly onMerge: (firstBlockId: string, secondBlockId: string) => Promise<boolean>;
   readonly onMove: (blockId: string, start: number) => void;
   readonly onResize: (blockId: string, end: number) => void;
+  readonly onScheduleTask: (taskId: string, start: number) => Promise<boolean>;
   readonly onSplit: (blockId: string, splitAt: number) => void;
   readonly onUnlinkProject: (blockId: string, projectId: string) => Promise<boolean>;
   readonly onUnlinkTask: (blockId: string, taskId: string) => Promise<boolean>;

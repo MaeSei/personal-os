@@ -9,11 +9,14 @@ type BreakdownTaskDraft = Pick<
     Pick<
       TaskWriteInput,
       | "context"
+      | "contexts"
       | "description"
       | "dueDate"
       | "durationMinutes"
       | "estimatedDuration"
       | "energyCost"
+      | "effort"
+      | "estimateConfidence"
       | "preferredContext"
       | "preferredTime"
       | "scheduledDate"

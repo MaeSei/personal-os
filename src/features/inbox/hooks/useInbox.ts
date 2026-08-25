@@ -18,10 +18,15 @@ const emptyData: InboxProcessingData = {
 };
 
 /** Coordinates transient Inbox UI state through the Inbox feature contract. */
-function useInbox(inbox: InboxFeature) {
+type UseInboxOptions = {
+  readonly onProcessed?: () => void;
+};
+
+function useInbox(inbox: InboxFeature, options: UseInboxOptions = {}) {
   const [announcement, setAnnouncement] = useState("");
   const [data, setData] = useState<InboxProcessingData>(emptyData);
   const [error, setError] = useState<string | null>(null);
+  const [focusVersion, setFocusVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [projectFollowUp, setProjectFollowUp] = useState<Project | null>(null);
@@ -40,7 +45,7 @@ function useInbox(inbox: InboxFeature) {
       })
       .catch(() => {
         if (isActive) {
-          setError("Atlas could not read this browser's Inbox.");
+          setError("Atlas could not read your Inbox.");
         }
       })
       .finally(() => {
@@ -57,7 +62,7 @@ function useInbox(inbox: InboxFeature) {
       subscribeToInboxCaptured(() => {
         setError(null);
         reload().catch(() => {
-          setError("Atlas could not refresh this browser's Inbox.");
+          setError("Atlas could not refresh your Inbox.");
         });
       }),
     [reload],
@@ -74,7 +79,9 @@ function useInbox(inbox: InboxFeature) {
     try {
       await action();
       await reload();
+      options.onProcessed?.();
       setAnnouncement(successMessage);
+      setFocusVersion((current) => current + 1);
       return true;
     } catch {
       setError("Atlas could not process that Item. Please try again.");
@@ -99,8 +106,10 @@ function useInbox(inbox: InboxFeature) {
     try {
       const project = await inbox.processAsProject(input);
       await reload();
+      options.onProcessed?.();
       setProjectFollowUp(project);
       setAnnouncement("Project created. Decide whether it needs a first Task.");
+      setFocusVersion((current) => current + 1);
       return true;
     } catch {
       setError("Atlas could not create that Project. Please try again.");
@@ -132,9 +141,11 @@ function useInbox(inbox: InboxFeature) {
         "Inbox Item deleted.",
       ),
     error,
+    focusVersion,
     finishProject: () => {
       setError(null);
       setProjectFollowUp(null);
+      setFocusVersion((current) => current + 1);
     },
     isLoading,
     isProcessing,

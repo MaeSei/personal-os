@@ -4,6 +4,7 @@ import {
 } from "./Focus";
 import type { Item } from "./Item";
 import { getProjectForItem, isProject, type Project } from "./Project";
+import { getProjectTaskRoots } from "./ProjectWorkspace";
 import { Status } from "./Status";
 import { isTask, type Task } from "./Task";
 
@@ -16,13 +17,6 @@ const futureActionStatuses: readonly Status[] = [
 
 function isFutureAction(item: ProjectAction): boolean {
   return futureActionStatuses.includes(item.status);
-}
-
-function compareByCreation(left: Item, right: Item): number {
-  return (
-    left.createdAt.getTime() - right.createdAt.getTime() ||
-    left.id.localeCompare(right.id)
-  );
 }
 
 function flattenItems(items: readonly Item[]): readonly Item[] {
@@ -47,23 +41,7 @@ function getProjectActions(
   project: Project,
   items: readonly Item[],
 ): readonly ProjectAction[] {
-  const orderedChildren = project.children.filter(
-    (item): item is Task =>
-      isTask(item) &&
-      (item.projectId === null || item.projectId === project.id),
-  );
-  const childIds = new Set(orderedChildren.map((item) => item.id));
-  const legacyFlatChildren = flattenItems(items)
-    .filter(
-      (item): item is ProjectAction =>
-        isTask(item) &&
-        (item.projectId === project.id ||
-          (item.projectId === null && item.parentId === project.id)) &&
-        !childIds.has(item.id),
-    )
-    .sort(compareByCreation);
-
-  return [...orderedChildren, ...legacyFlatChildren];
+  return flattenItems(getProjectTaskRoots(project, items)).filter(isTask);
 }
 
 function activate(item: ProjectAction): ActionableItem {

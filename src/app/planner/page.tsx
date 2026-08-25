@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { DailyPlannerClient } from "@/features/planner/components/DailyPlannerClient";
 
 export const metadata: Metadata = {
-  description: "Shape an intentional day with all planning context in view.",
-  title: "Planning Workspace | Atlas",
+  description: "Shape an intentional day around real calendar commitments.",
+  title: "Calendar Workspace | Atlas",
 };
 
 type PlannerPageProps = {

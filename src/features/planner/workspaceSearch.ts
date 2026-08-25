@@ -33,6 +33,7 @@ function searchWorkspace(
       task.area.title,
       task.project?.title,
       task.project?.outcome,
+      ...task.contexts,
       task.preferredContext,
       task.preferredTime,
     ], query)),

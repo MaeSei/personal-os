@@ -25,7 +25,7 @@ function MorningSummary({
   return (
     <section aria-labelledby="morning-summary-title" className={spacingStyles.section}>
       <PageHeader
-        action={<ButtonLink href="/" variant="secondary">Mission Control</ButtonLink>}
+        action={<ButtonLink href="/" variant="secondary">Workspace</ButtonLink>}
         description="Choose a small, realistic day with Projects and Tasks still in view."
         eyebrow={dateLabel}
         title={<>Good morning, {name}.</>}

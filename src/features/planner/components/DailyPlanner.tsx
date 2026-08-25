@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/Card";
 import { PageContainer } from "@/components/ui/PageContainer";
 import type { DailyPlannerData } from "@/features/contracts/PlannerFeature";
 import { DayPlanActions } from "@/features/planner/components/DayPlanActions";
+import { CalendarConnectionPanel } from "@/features/calendar/components/CalendarConnectionPanel";
 import { MorningSummary } from "@/features/planner/components/MorningSummary";
 import { PlannerFeedback } from "@/features/planner/components/PlannerFeedback";
 import { PlanningWorkspace } from "@/features/planner/components/PlanningWorkspace";
@@ -17,6 +18,7 @@ type DailyPlannerProps = TimeBlockActions & {
   readonly error: string | null;
   readonly initialTaskId?: string | null;
   readonly onMoveTask: (taskId: string, direction: "down" | "up") => Promise<boolean>;
+  readonly onCalendarChanged: () => Promise<unknown>;
   readonly onPlaceTask: (taskId: string, beforeTaskId?: string | null) => Promise<boolean>;
   readonly onPlaceTasks: (taskIds: readonly string[]) => Promise<boolean>;
   readonly onRemoveTask: (taskId: string) => Promise<boolean>;
@@ -31,6 +33,7 @@ function DailyPlanner(props: DailyPlannerProps) {
     <PageContainer>
       <div className={spacingStyles.pageStack}>
         <MorningSummary {...data.morning} />
+        <CalendarConnectionPanel onCalendarChanged={props.onCalendarChanged} />
         {error ? <Card role="alert" tone="danger"><p className={typographyStyles.description}>{error}</p></Card> : null}
         <PlannerFeedback announcement={announcement} isSaving={props.disabled} />
         <PlanningWorkspace {...props} />

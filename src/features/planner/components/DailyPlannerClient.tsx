@@ -35,6 +35,7 @@ function DailyPlannerClient({ initialTaskId }: DailyPlannerClientProps) {
       error={state.error}
       initialTaskId={initialTaskId}
       onCreate={state.createTimeBlock}
+      onCalendarChanged={state.reload}
       onDelete={state.deleteTimeBlock}
       onDuplicate={state.duplicateTimeBlock}
       onLinkProject={state.linkProject}
@@ -47,6 +48,7 @@ function DailyPlannerClient({ initialTaskId }: DailyPlannerClientProps) {
       onPlaceTasks={state.placeTasks}
       onRemoveTask={state.removeTask}
       onResize={state.resizeTimeBlock}
+      onScheduleTask={state.scheduleTaskInSlot}
       onSaveDraft={() => void state.saveDraft()}
       onSplit={state.splitTimeBlock}
       onStartDay={() => void state.startDay()}

@@ -10,21 +10,24 @@ import { colorStyles } from "@/theme/colors";
 import { spacingStyles } from "@/theme/spacing";
 import { typographyStyles } from "@/theme/typography";
 
-type WorkspacePanelProps = {
+type CollapsiblePanelProps = {
   readonly children: ReactNode;
   readonly count?: number;
   readonly defaultExpanded?: boolean;
   readonly description?: string;
-  readonly title: string;
+  readonly headingLevel?: "h2" | "h3";
+  readonly title: ReactNode;
 };
 
-function WorkspacePanel({
+/** A keyboard-accessible disclosure surface shared by workspace collections. */
+function CollapsiblePanel({
   children,
   count,
   defaultExpanded = true,
   description,
+  headingLevel: Heading = "h2",
   title,
-}: WorkspacePanelProps) {
+}: CollapsiblePanelProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const contentId = useId();
   const titleId = useId();
@@ -32,22 +35,36 @@ function WorkspacePanel({
   return (
     <section aria-labelledby={titleId}>
       <Card padding="none">
-        <div className={cn("flex items-start justify-between", spacingStyles.cardPadding.sm)}>
+        <div
+          className={cn(
+            "flex items-start justify-between",
+            spacingStyles.cardPadding.sm,
+          )}
+        >
           <div className={spacingStyles.detailStack}>
             <div className={spacingStyles.cluster}>
-              <h2 className={typographyStyles.cardTitle} id={titleId}>{title}</h2>
-              {typeof count === "number" ? <Badge variant="neutral">{count}</Badge> : null}
+              <Heading className={typographyStyles.cardTitle} id={titleId}>
+                {title}
+              </Heading>
+              {typeof count === "number" ? (
+                <Badge variant="neutral">{count}</Badge>
+              ) : null}
             </div>
             {description ? (
-              <p className={cn(typographyStyles.description, colorStyles.text.muted)}>
+              <p
+                className={cn(
+                  typographyStyles.description,
+                  colorStyles.text.muted,
+                )}
+              >
                 {description}
               </p>
             ) : null}
           </div>
           <Button
-            aria-label={`${expanded ? "Collapse" : "Expand"} ${title}`}
             aria-controls={contentId}
             aria-expanded={expanded}
+            aria-label={`${expanded ? "Collapse" : "Expand"} ${String(title)}`}
             onClick={() => setExpanded((current) => !current)}
             size="sm"
             variant="ghost"
@@ -67,4 +84,4 @@ function WorkspacePanel({
   );
 }
 
-export { WorkspacePanel };
+export { CollapsiblePanel, type CollapsiblePanelProps };

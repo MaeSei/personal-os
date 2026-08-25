@@ -1,5 +1,6 @@
 import type { AreaId } from "./Area";
-import type { EnergyCost } from "./Attention";
+import type { Effort, EnergyCost } from "./Attention";
+import type { EstimateConfidence } from "./EffortModel";
 import {
   ItemType,
   type CalendarDate,
@@ -14,9 +15,12 @@ import type { PreferredTime } from "./Task";
 type InboxTaskInput = {
   readonly areaId: AreaId;
   readonly context?: string | null;
+  readonly contexts?: readonly string[];
   readonly description?: string | null;
   readonly dueDate?: CalendarDate | null;
   readonly durationMinutes?: number | null;
+  readonly effort?: Effort;
+  readonly estimateConfidence?: EstimateConfidence | null;
   readonly estimatedDuration?: number | null;
   readonly energyCost?: EnergyCost;
   readonly projectId?: ItemId | null;
@@ -52,13 +56,15 @@ function convertInboxToTask(
       areaId: input.areaId,
       attentionScore: item.attentionScore,
       context: input.context,
+      contexts: input.contexts,
       createdAt: item.createdAt,
       description:
         input.description === undefined ? item.description : input.description,
       dueDate: input.dueDate,
       durationMinutes: input.durationMinutes,
+      estimateConfidence: input.estimateConfidence,
       estimatedDuration: input.estimatedDuration,
-      effort: item.effort,
+      effort: input.effort ?? item.effort,
       energyCost: input.energyCost ?? item.energyCost,
       id: item.id,
       projectId: input.projectId,

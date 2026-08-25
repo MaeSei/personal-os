@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PlannerService } from "../src/application/PlannerService";
-import { CalendarService } from "../src/application/CalendarService";
 import {
   MockCalendarProvider,
   type CalendarProvider,
 } from "../src/calendar";
 import {
+  AvailabilityService,
   DayPlanStatus,
   Status,
   PlanningRulesEngine,
@@ -29,7 +29,7 @@ class AreaMemoryRepository implements AreaRepository {
 }
 
 function createPlanner(
-  calendar: CalendarProvider = new CalendarService(new MockCalendarProvider()),
+  calendar: CalendarProvider = new MockCalendarProvider(),
 ) {
   const createdAt = new Date("2026-08-24T06:00:00.000Z");
   const projectTask = createTask({
@@ -76,6 +76,7 @@ function createPlanner(
     items,
     new AreaMemoryRepository(),
     reviews,
+    new AvailabilityService(),
     new PlanningRulesEngine(),
     calendar,
     () => ids.shift() ?? "unexpected-id",
@@ -86,11 +87,11 @@ function createPlanner(
       userName: "Maike",
     },
   );
-  return { plans, service };
+  return { items, plans, service };
 }
 
 test("Planner assembles current Review, Inbox, Projects, Tasks, and no fake events", async () => {
-  const { service } = createPlanner();
+  const { items, plans, service } = createPlanner();
   const data = await service.loadPlanner();
 
   assert.equal(data.morning.date, "2026-08-24");
@@ -103,9 +104,24 @@ test("Planner assembles current Review, Inbox, Projects, Tasks, and no fake even
     "standalone",
     "project-task",
   ]);
+  assert.deepEqual(data.suggestions.map(({ placement, task }) => ({
+    end: placement.end,
+    id: task.id,
+    start: placement.start,
+  })), [
+    { end: 570, id: "standalone", start: 540 },
+    { end: 630, id: "project-task", start: 570 },
+  ]);
   assert.equal(data.commitments.length, 0);
+  assert.equal(data.timeBlocks.length, 0);
+  assert.equal(await plans.get("2026-08-24"), null);
+  const storedTasks = (await items.get()).flatMap((item) =>
+    item.children.length > 0 ? item.children : [item]
+  );
+  assert.equal(storedTasks.every((item) => item.scheduledStart == null), true);
   assert.equal(data.plan.persisted, false);
   assert.equal(data.plan.status, DayPlanStatus.Draft);
+  assert.deepEqual(data.availableSlots, [{ duration: 480, end: 1020, start: 540 }]);
 });
 
 test("Morning plans persist as resumable drafts until the user starts the day", async () => {
@@ -125,6 +141,46 @@ test("Morning plans persist as resumable drafts until the user starts the day", 
   assert.equal((await plans.get("2026-08-24"))?.status, DayPlanStatus.Started);
 });
 
+test("Discarding a Morning draft removes planning data without changing Tasks", async () => {
+  const { items, plans, service } = createPlanner();
+
+  let data = await service.createTimeBlock({
+    end: 10 * 60,
+    linkedTaskIds: ["standalone"],
+    start: 9 * 60,
+    title: "Call electrician",
+    type: TimeBlockType.Focus,
+  });
+  assert.equal(data.plan.persisted, true);
+  assert.equal(data.commitments[0]?.status, Status.Active);
+  assert.ok(data.commitments[0]?.scheduledStart);
+
+  data = await service.discardDraft();
+
+  assert.equal(await plans.get("2026-08-24"), null);
+  assert.equal(data.plan.persisted, false);
+  assert.deepEqual(data.commitments, []);
+  assert.deepEqual(data.timeBlocks, []);
+  const standalone = (await items.get()).find(({ id }) => id === "standalone");
+  assert.equal(standalone?.status, Status.Active);
+  assert.equal(standalone?.scheduledDate, null);
+  assert.equal(standalone?.scheduledStart, null);
+  assert.equal(standalone?.scheduledEnd, null);
+});
+
+test("A started day cannot be discarded", async () => {
+  const { plans, service } = createPlanner();
+
+  await service.saveDraft();
+  await service.startDay();
+
+  await assert.rejects(service.discardDraft(), /started day cannot be discarded/i);
+  assert.equal(
+    (await plans.get("2026-08-24"))?.status,
+    DayPlanStatus.Started,
+  );
+});
+
 test("Multiple available Tasks can be selected into today with one command", async () => {
   const { service } = createPlanner();
 
@@ -138,7 +194,7 @@ test("Multiple available Tasks can be selected into today with one command", asy
 });
 
 test("Planner reads external events only through its CalendarProvider", async () => {
-  const calendar = new CalendarService(new MockCalendarProvider({
+  const calendar = new MockCalendarProvider({
     connected: true,
     events: [{
       allDay: false,
@@ -151,7 +207,7 @@ test("Planner reads external events only through its CalendarProvider", async ()
       start: new Date("2026-08-24T08:00:00.000Z"),
       title: "Design review",
     }],
-  }));
+  });
   const { service } = createPlanner(calendar);
 
   const data = await service.loadPlanner();
@@ -159,6 +215,132 @@ test("Planner reads external events only through its CalendarProvider", async ()
   assert.equal(data.calendar.connected, true);
   assert.equal(data.calendar.timeZone, "Europe/Stockholm");
   assert.deepEqual(data.calendar.events.map(({ id }) => id), ["meeting"]);
+  assert.deepEqual(data.availableSlots, [
+    { duration: 60, end: 600, start: 540 },
+    { duration: 360, end: 1020, start: 660 },
+  ]);
+  assert.equal(data.availableTime.totalMinutes, 420);
+  assert.equal(data.availableTime.remainingMinutes, 420);
+});
+
+test("Calendar Workspace keeps events, reservations, and open slots coherent", async () => {
+  const calendar = new MockCalendarProvider({
+    connected: true,
+    events: [{
+      allDay: false,
+      busy: true,
+      calendarId: "work",
+      description: null,
+      end: new Date("2026-08-24T12:00:00.000Z"),
+      id: "lunch-meeting",
+      location: null,
+      start: new Date("2026-08-24T11:00:00.000Z"),
+      title: "Lunch meeting",
+    }],
+  });
+  const { service } = createPlanner(calendar);
+
+  let data = await service.createTimeBlock({
+    end: 9 * 60 + 30,
+    linkedTaskIds: ["standalone"],
+    start: 9 * 60,
+    title: "Call electrician",
+    type: TimeBlockType.Focus,
+  });
+  const blockId = data.timeBlocks[0]?.id;
+  assert.ok(blockId);
+  assert.deepEqual(data.calendar.events.map(({ id }) => id), ["lunch-meeting"]);
+  assert.deepEqual(data.availableSlots, [
+    { duration: 210, end: 780, start: 570 },
+    { duration: 180, end: 1020, start: 840 },
+  ]);
+
+  data = await service.moveTimeBlock(blockId, 10 * 60);
+  assert.deepEqual(data.availableSlots, [
+    { duration: 60, end: 600, start: 540 },
+    { duration: 150, end: 780, start: 630 },
+    { duration: 180, end: 1020, start: 840 },
+  ]);
+
+  data = await service.resizeTimeBlock(blockId, 11 * 60);
+  assert.deepEqual(data.availableSlots, [
+    { duration: 60, end: 600, start: 540 },
+    { duration: 120, end: 780, start: 660 },
+    { duration: 180, end: 1020, start: 840 },
+  ]);
+
+  data = await service.unscheduleTask("standalone");
+  assert.equal(data.timeBlocks[0]?.linkedTasks.length, 0);
+  assert.equal(data.commitments[0]?.scheduledStart, null);
+
+  data = await service.deleteTimeBlock(blockId);
+  assert.deepEqual(data.availableSlots, [
+    { duration: 240, end: 780, start: 540 },
+    { duration: 180, end: 1020, start: 840 },
+  ]);
+});
+
+test("drag scheduling creates persisted work without changing Task status", async () => {
+  const { items, plans, service } = createPlanner();
+
+  let data = await service.scheduleTaskInSlot("project-task", 9 * 60);
+  const blockId = data.timeBlocks[0]?.id;
+  assert.ok(blockId);
+  assert.equal(data.timeBlocks[0]?.start, 9 * 60);
+  assert.equal(data.timeBlocks[0]?.end, 10 * 60);
+  assert.deepEqual(data.timeBlocks[0]?.linkedTasks.map(({ id }) => id), ["project-task"]);
+  assert.deepEqual(data.timeBlocks[0]?.linkedProjects.map(({ id }) => id), ["project"]);
+  assert.deepEqual(data.commitments.map(({ id }) => id), ["project-task"]);
+  assert.equal(data.commitments[0]?.status, Status.Active);
+  assert.equal(data.commitments[0]?.scheduledStart?.toISOString(), "2026-08-24T07:00:00.000Z");
+  assert.equal(data.commitments[0]?.scheduledEnd?.toISOString(), "2026-08-24T08:00:00.000Z");
+  assert.equal((await plans.get("2026-08-24"))?.timeBlocks.length, 1);
+
+  data = await service.moveTimeBlock(blockId, 10 * 60);
+  data = await service.resizeTimeBlock(blockId, 11 * 60);
+  data = await service.duplicateTimeBlock(blockId, 12 * 60);
+  assert.equal(data.timeBlocks.length, 2);
+  assert.equal(data.commitments[0]?.status, Status.Active);
+
+  data = await service.deleteTimeBlock(blockId);
+  assert.equal(data.timeBlocks.length, 1);
+  assert.equal(data.commitments[0]?.scheduledStart?.toISOString(), "2026-08-24T10:00:00.000Z");
+
+  data = await service.unscheduleTask("project-task");
+  assert.equal(data.timeBlocks[0]?.linkedTasks.length, 0);
+  assert.equal(data.commitments[0]?.scheduledStart, null);
+  const storedProject = (await items.get()).find(({ id }) => id === "project");
+  assert.equal(storedProject?.children[0]?.status, Status.Active);
+});
+
+test("slot scheduling revalidates fit against Calendar and existing blocks", async () => {
+  const calendar = new MockCalendarProvider({
+    connected: true,
+    events: [{
+      allDay: false,
+      busy: true,
+      calendarId: "work",
+      description: null,
+      end: new Date("2026-08-24T15:00:00.000Z"),
+      id: "long-meeting",
+      location: null,
+      start: new Date("2026-08-24T07:30:00.000Z"),
+      title: "Long meeting",
+    }],
+  });
+  const { service } = createPlanner(calendar);
+
+  await assert.rejects(
+    service.scheduleTaskInSlot("project-task", 9 * 60),
+    /needs 60 minutes and does not fit/,
+  );
+
+  const data = await service.scheduleTaskInSlot("standalone", 9 * 60);
+  assert.equal(data.timeBlocks[0]?.end, 9 * 60 + 30);
+  await assert.rejects(
+    service.scheduleTaskInSlot("standalone", 16 * 60),
+    /already scheduled/,
+  );
 });
 
 test("Tasks can be placed, reordered, scheduled, unscheduled, and removed", async () => {

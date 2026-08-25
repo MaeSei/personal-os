@@ -1,32 +1,48 @@
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
 import type { DailyPlannerData } from "@/features/contracts/PlannerFeature";
-import { CalendarEvents } from "@/features/planner/components/CalendarEvents";
-import { formatDuration } from "@/features/planner/presentation";
+import { WorkspaceCapacity } from "@/features/planner/components/WorkspaceCapacity";
+import { formatClockTime, formatDuration } from "@/features/planner/presentation";
 import { cn } from "@/lib/cn";
 import { colorStyles } from "@/theme/colors";
 import { spacingStyles } from "@/theme/spacing";
 import { typographyStyles } from "@/theme/typography";
 
-type AvailableTimeProps = Pick<DailyPlannerData, "availableTime" | "calendar">;
+type AvailableTimeProps = Pick<
+  DailyPlannerData,
+  "attention" | "availableSlots" | "availableTime"
+>;
 
-function AvailableTime({ availableTime, calendar }: AvailableTimeProps) {
+function AvailableTime(props: AvailableTimeProps) {
   return (
     <Section
-      description="An eight-hour planning window minus the blocks you explicitly create."
+      description="Calendar commitments, working hours, and Atlas reservations define the room you can choose to use."
       id="available-time"
-      title="Today's Available Time"
+      title="How much room is available?"
     >
-      <div className={cn(spacingStyles.cardGrid, "md:grid-cols-2")}>
-        <Card>
-          <p className={cn(typographyStyles.metric, colorStyles.text.accent)}>{formatDuration(availableTime.remainingMinutes)}</p>
-          <p className={cn(typographyStyles.description, colorStyles.text.muted)}>Unallocated of {formatDuration(availableTime.totalMinutes)}</p>
-          <p className={cn("mt-card", typographyStyles.metricValue, colorStyles.text.primary)}>{formatDuration(availableTime.plannedMinutes)} time-boxed</p>
-        </Card>
-        <Card tone="subtle">
-          <CalendarEvents calendar={calendar} />
-        </Card>
-      </div>
+      <Card padding="lg">
+        <WorkspaceCapacity {...props} />
+      </Card>
+      {props.availableSlots.length === 0 ? (
+        <EmptyState
+          description="Your working window is already occupied. You can still choose Tasks without assigning them a time."
+          title="No open time remains"
+        />
+      ) : (
+        <div className={cn(spacingStyles.cardGrid, "sm:grid-cols-2 lg:grid-cols-3")}>
+          {props.availableSlots.map((slot) => (
+            <Card key={`${slot.start}-${slot.end}`} padding="sm" tone="subtle">
+              <p className={cn(typographyStyles.cardTitle, colorStyles.text.primary)}>
+                {formatClockTime(slot.start)}–{formatClockTime(slot.end)}
+              </p>
+              <p className={cn(typographyStyles.description, colorStyles.text.accent)}>
+                {formatDuration(slot.duration)} available
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
     </Section>
   );
 }

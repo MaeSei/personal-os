@@ -38,14 +38,14 @@ function DayPlanActions({
           </h2>
           <p className={cn(typographyStyles.description, colorStyles.text.muted)}>
             {started
-              ? "Mission Control and Focus Mode now follow this intentional order."
+              ? "Workspace and Focus Mode now follow this intentional order."
               : "Planning changes remain a draft until you explicitly start the day."}
           </p>
         </div>
         <div className={spacingStyles.cluster}>
           {started ? (
             <>
-              <ButtonLink href="/" size="lg">Mission Control</ButtonLink>
+              <ButtonLink href="/" size="lg">Workspace</ButtonLink>
               <ButtonLink href="/focus" size="lg" variant="secondary">
                 Open Focus Mode
               </ButtonLink>

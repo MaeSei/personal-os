@@ -5,6 +5,7 @@ import type {
   EnergyCost,
 } from "./Attention";
 import type { Status } from "./Status";
+import type { EstimateConfidence } from "./EffortModel";
 
 /** The supported ways an Atlas Item can be interpreted. */
 enum ItemType {
@@ -32,6 +33,8 @@ type Item = {
   readonly children: readonly Item[];
   /** Optional place or tool needed to do a Task, such as "Office". */
   readonly context?: string | null;
+  /** Canonical execution constraints; legacy single-context fields remain readable. */
+  readonly contexts?: readonly string[];
   readonly createdAt: Date;
   readonly description: string | null;
   /** Optional calendar constraint. It does not imply Today status. */
@@ -40,6 +43,8 @@ type Item = {
   readonly durationMinutes?: number | null;
   /** Canonical optional Task estimate; durationMinutes remains compatibility data. */
   readonly estimatedDuration?: number | null;
+  /** Confidence in the current Task estimate; no history or actual is implied. */
+  readonly estimateConfidence?: EstimateConfidence | null;
   readonly energyCost: EnergyCost;
   readonly effort: Effort;
   readonly id: ItemId;

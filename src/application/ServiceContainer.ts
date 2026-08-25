@@ -10,18 +10,29 @@ import {
 import { PlannerService } from "./PlannerService";
 import { ProjectService } from "./ProjectService";
 import { ReviewService } from "./ReviewService";
-import { PlanningRulesEngine, RuleBasedAttentionEngine } from "../domain";
+import { TaskService } from "./TaskService";
+import { WorkspaceService } from "./WorkspaceService";
+import { WrapUpService } from "./WrapUpService";
+import {
+  AvailabilityService,
+  PlanningRulesEngine,
+  RuleBasedAttentionEngine,
+  type CalendarDate,
+} from "../domain";
 import type { AtlasFeatures } from "@/features/contracts/AtlasFeatures";
+import type { CalendarOAuthFeature } from "@/features/contracts/CalendarFeature";
 import type { RepositorySet } from "@/repositories/RepositoryFactory";
-import type { CalendarProvider } from "@/calendar";
+import type { CalendarSyncProvider } from "@/calendar";
+import type { TokenCipher } from "@/server/security/TokenCipher";
 
 type ServiceContainerOptions = {
-  readonly calendarProvider: CalendarProvider;
+  readonly calendarProvider: CalendarSyncProvider | null;
+  readonly calendarTokenCipher: TokenCipher | null;
   readonly createId: () => string;
   readonly missionControlContext: MissionControlContext;
 };
 
-function getCalendarDate(timeZone: string, now: Date): string {
+function getCalendarDate(timeZone: string, now: Date): CalendarDate {
   const parts = new Intl.DateTimeFormat("en", {
     day: "2-digit",
     month: "2-digit",
@@ -36,6 +47,7 @@ function getCalendarDate(timeZone: string, now: Date): string {
 
 /** Builds concrete services, then exposes only their feature contracts. */
 class ServiceContainer {
+  readonly calendarOAuth: CalendarOAuthFeature;
   readonly features: AtlasFeatures;
 
   constructor(
@@ -43,17 +55,30 @@ class ServiceContainer {
     options: ServiceContainerOptions,
   ) {
     const attentionEngine = new RuleBasedAttentionEngine();
-    const calendar = new CalendarService(options.calendarProvider);
+    const calendar = new CalendarService(
+      repositories.calendars,
+      options.calendarProvider,
+      options.calendarTokenCipher,
+      { timeZone: options.missionControlContext.timeZone },
+    );
+    const availability = new AvailabilityService();
     const planningRules = new PlanningRulesEngine();
+    const tasks = new TaskService(
+      repositories.items,
+      repositories.areas,
+      options.createId,
+    );
     const projects = new ProjectService(
       repositories.items,
       repositories.areas,
       options.createId,
+      tasks,
     );
 
     this.features = {
       areas: new AreaService(repositories.areas),
       breakdown: new ManualBreakdownService(projects),
+      calendar,
       focus: new FocusService(
         repositories.items,
         repositories.reviews,
@@ -64,6 +89,9 @@ class ServiceContainer {
             options.missionControlContext.timeZone,
             options.missionControlContext.now ?? new Date(),
           ),
+        options.missionControlContext.timeZone,
+        options.createId,
+        () => options.missionControlContext.now ?? new Date(),
       ),
       inbox: new InboxService(
         repositories.items,
@@ -83,6 +111,7 @@ class ServiceContainer {
         repositories.items,
         repositories.areas,
         repositories.reviews,
+        availability,
         planningRules,
         calendar,
         options.createId,
@@ -95,7 +124,22 @@ class ServiceContainer {
           options.missionControlContext.now ?? new Date(),
         ),
       ),
+      tasks,
+      workspace: new WorkspaceService(
+        repositories.items,
+        repositories.areas,
+        repositories.plans,
+        options.missionControlContext,
+      ),
+      wrapUp: new WrapUpService(
+        repositories.wrapUps,
+        repositories.plans,
+        repositories.items,
+        calendar,
+        options.missionControlContext,
+      ),
     };
+    this.calendarOAuth = calendar;
   }
 }
 

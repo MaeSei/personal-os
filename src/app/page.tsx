@@ -1,5 +1,5 @@
-import { MissionControlClient } from "@/features/mission-control/components/MissionControlClient";
+import { WorkspaceClient } from "@/features/workspace/components/WorkspaceClient";
 
 export default function Home() {
-  return <MissionControlClient />;
+  return <WorkspaceClient />;
 }

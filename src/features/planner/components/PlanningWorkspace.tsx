@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 
 import type { DailyPlannerData } from "@/features/contracts/PlannerFeature";
-import { CalendarEvents } from "@/features/planner/components/CalendarEvents";
+import { CollapsiblePanel as WorkspacePanel } from "@/components/ui/CollapsiblePanel";
 import { PlanningArea } from "@/features/planner/components/PlanningArea";
 import {
   TimeBlocksSection,
@@ -11,7 +11,6 @@ import {
 import type { TimeBlockActions } from "@/features/planner/components/TimeBlockActions";
 import { WorkspaceCapacity } from "@/features/planner/components/WorkspaceCapacity";
 import { WorkspaceContextRail } from "@/features/planner/components/WorkspaceContextRail";
-import { WorkspacePanel } from "@/features/planner/components/WorkspacePanel";
 import { WorkspaceSearch } from "@/features/planner/components/WorkspaceSearch";
 import { searchWorkspace } from "@/features/planner/workspaceSearch";
 import { spacingStyles } from "@/theme/spacing";
@@ -72,12 +71,11 @@ function PlanningWorkspace(props: PlanningWorkspaceProps) {
         query={query}
         resultCount={resultCount}
       />
-      <div className="grid items-start gap-card md:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.8fr)]">
+      <div className="grid items-start gap-card xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]">
         <div className={spacingStyles.cardStack}>
           <WorkspacePanel
-            count={props.data.commitments.length}
-            description="Choose what belongs today, then reserve attention only where useful."
-            title="Planner"
+            description="Today&apos;s choices, real commitments, and genuinely open time in one place."
+            title="Calendar Workspace"
           >
             <div className={spacingStyles.cardStack}>
               <WorkspaceCapacity
@@ -91,26 +89,21 @@ function PlanningWorkspace(props: PlanningWorkspaceProps) {
                 onMove={props.onMoveTask}
                 onPlace={props.onPlaceTask}
                 onRemove={props.onRemoveTask}
+                onSchedule={props.onScheduleTask}
                 onUnschedule={props.onUnscheduleTask}
                 suggestions={props.data.suggestions}
                 timeBlocks={props.data.timeBlocks}
               />
               <TimeBlocksSection
                 {...props}
+                availableSlots={props.data.availableSlots}
+                calendar={props.data.calendar}
                 commitments={props.data.commitments}
                 projects={props.data.projects}
                 taskPool={props.data.taskPool}
                 timeBlocks={props.data.timeBlocks}
               />
             </div>
-          </WorkspacePanel>
-          <WorkspacePanel
-            count={props.data.calendar.events.length}
-            defaultExpanded={props.data.calendar.events.length > 0}
-            description="External commitments remain read-only planning context."
-            title="Calendar"
-          >
-            <CalendarEvents calendar={props.data.calendar} />
           </WorkspacePanel>
         </div>
         <WorkspaceContextRail

@@ -12,7 +12,7 @@ function MorningProgress({ current }: MorningProgressProps) {
 
   return (
     <nav aria-label="Morning planning progress">
-      <ol className="grid grid-cols-2 gap-detail sm:grid-cols-5">
+      <ol className="grid grid-cols-2 gap-detail sm:grid-cols-3 lg:grid-cols-6">
         {morningSteps.map(({ id, label }, index) => {
           const isCurrent = id === current;
           const complete = index < currentIndex;

@@ -7,7 +7,7 @@ import { spacingStyles } from "@/theme/spacing";
 
 type MorningCalendarStepProps = {
   readonly calendar: DailyPlannerData["calendar"];
-  readonly onBack: () => void;
+  readonly onBack?: () => void;
   readonly onNext: () => void;
 };
 
@@ -27,7 +27,7 @@ function MorningCalendarStep({
       </Card>
       <div className={spacingStyles.cardStack}>
         <MorningStepActions
-          nextLabel="See planning suggestions"
+          nextLabel="See available time"
           onBack={onBack}
           onNext={onNext}
         />

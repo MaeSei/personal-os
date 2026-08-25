@@ -3,7 +3,6 @@ import { taskStatuses } from "@/domain";
 import {
   fieldClassName,
   fieldGroupClassName,
-  formGridClassName,
   labelClassName,
 } from "@/components/forms/fieldStyles";
 import type { TaskEditorValue } from "@/features/tasks/components/types";
@@ -40,7 +39,7 @@ function TaskCoreFields({
   );
 
   return (
-    <div className={formGridClassName}>
+    <div className="grid gap-card @md:grid-cols-2">
       <div className={fieldGroupClassName}>
         <label className={labelClassName} htmlFor={`${idPrefix}-title`}>
           Task

@@ -86,13 +86,34 @@ function useProjectDetail(
     },
     createTask: (input: TaskWriteInput) =>
       run(() => projects.createTask(input), "Task created."),
+    createMilestone: (input: Parameters<ProjectFeature["createMilestone"]>[1]) =>
+      run(() => projects.createMilestone(projectId, input), "Milestone created."),
+    createNote: (body: string, pinned: boolean) =>
+      run(() => projects.createNote(projectId, body, pinned), "Note added."),
     data,
+    deleteMilestone: (milestoneId: string) =>
+      run(
+        () => projects.deleteMilestone(projectId, milestoneId),
+        "Milestone removed. Its Tasks remain in the Project.",
+      ),
+    deleteNote: (noteId: string) =>
+      run(() => projects.deleteNote(projectId, noteId), "Note deleted."),
     deleteTask: (taskId: string) =>
       run(() => projects.deleteTask(taskId), "Task deleted."),
     error,
     isLoading,
     isSaving,
     notFound,
+    groupTask: (taskId: string, milestoneId: string | null) =>
+      run(
+        () => projects.groupTask(projectId, taskId, milestoneId),
+        "Task group updated.",
+      ),
+    linkRelatedProject: (relatedProjectId: string) =>
+      run(
+        () => projects.linkRelatedProject(projectId, relatedProjectId),
+        "Related Project added.",
+      ),
     reorderTask: (taskId: string, direction: "down" | "up") =>
       run(
         () => projects.reorderTask(projectId, taskId, direction),
@@ -105,6 +126,21 @@ function useProjectDetail(
         .catch(() => setError("Atlas could not load this Project."))
         .finally(() => setIsLoading(false));
     },
+    setMilestoneCompleted: (milestoneId: string, completed: boolean) =>
+      run(
+        () => projects.setMilestoneCompleted(projectId, milestoneId, completed),
+        completed ? "Milestone achieved." : "Milestone reopened.",
+      ),
+    setNotePinned: (noteId: string, pinned: boolean) =>
+      run(
+        () => projects.setNotePinned(projectId, noteId, pinned),
+        pinned ? "Note pinned." : "Note unpinned.",
+      ),
+    unlinkRelatedProject: (relatedProjectId: string) =>
+      run(
+        () => projects.unlinkRelatedProject(projectId, relatedProjectId),
+        "Related Project removed.",
+      ),
     updateTask: (taskId: string, input: TaskWriteInput) =>
       run(() => projects.updateTask(taskId, input), "Task updated."),
   };

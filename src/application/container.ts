@@ -2,7 +2,7 @@ import "server-only";
 
 import { ApplicationContainer } from "@/application/ApplicationContainer";
 import { PrismaRepositoryFactory } from "@/repositories/PrismaRepositoryFactory";
-import { MockCalendarProvider } from "@/calendar";
+import { createGoogleCalendarIntegration } from "@/server/config/googleCalendarConfig";
 
 function createId(): string {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -13,10 +13,12 @@ function createId(): string {
 }
 
 /** The server-only composition root for production application services. */
+const googleCalendar = createGoogleCalendarIntegration();
 const applicationContainer = new ApplicationContainer(
   new PrismaRepositoryFactory(),
   {
-    calendarProvider: new MockCalendarProvider(),
+    calendarProvider: googleCalendar.provider,
+    calendarTokenCipher: googleCalendar.cipher,
     createId,
     missionControlContext: {
       locale: "en-GB",

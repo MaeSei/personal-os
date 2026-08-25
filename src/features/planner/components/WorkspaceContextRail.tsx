@@ -1,5 +1,5 @@
 import { WorkspaceInbox } from "@/features/planner/components/WorkspaceInbox";
-import { WorkspacePanel } from "@/features/planner/components/WorkspacePanel";
+import { CollapsiblePanel as WorkspacePanel } from "@/components/ui/CollapsiblePanel";
 import { WorkspaceProjects } from "@/features/planner/components/WorkspaceProjects";
 import { WorkspaceTaskPool } from "@/features/planner/components/WorkspaceTaskPool";
 import type { WorkspaceSearchResults } from "@/features/planner/workspaceSearch";
@@ -32,7 +32,7 @@ function WorkspaceContextRail(props: WorkspaceContextRailProps) {
       <WorkspacePanel
         count={props.results.tasks.length}
         description="Select several Tasks, drag one, or add work directly."
-        title="Tasks"
+        title="Available Tasks"
       >
         <WorkspaceTaskPool
           disabled={props.disabled}

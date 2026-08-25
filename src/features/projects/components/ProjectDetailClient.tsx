@@ -53,8 +53,17 @@ function ProjectDetailClient({ projectId }: ProjectDetailClientProps) {
       isSaving={workspace.isSaving}
       onBreakDown={workspace.breakDown}
       onCreate={workspace.createTask}
+      onCreateMilestone={workspace.createMilestone}
+      onCreateNote={workspace.createNote}
       onDelete={workspace.deleteTask}
+      onDeleteMilestone={workspace.deleteMilestone}
+      onDeleteNote={workspace.deleteNote}
+      onGroupTask={workspace.groupTask}
+      onLinkProject={workspace.linkRelatedProject}
       onReorder={workspace.reorderTask}
+      onSetMilestoneCompleted={workspace.setMilestoneCompleted}
+      onSetNotePinned={workspace.setNotePinned}
+      onUnlinkProject={workspace.unlinkRelatedProject}
       onUpdate={workspace.updateTask}
       projects={workspace.data.projects}
     />

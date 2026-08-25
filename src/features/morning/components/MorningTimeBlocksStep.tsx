@@ -1,24 +1,26 @@
-import { DayPlanActions } from "@/features/planner/components/DayPlanActions";
-import { PlanningWorkspace } from "@/features/planner/components/PlanningWorkspace";
+import { MorningStepActions } from "@/features/morning/components/MorningStepActions";
+import { TimeBlocksSection } from "@/features/planner/components/TimeBlocksSection";
 import type { useDailyPlanner } from "@/features/planner/hooks/useDailyPlanner";
 import { spacingStyles } from "@/theme/spacing";
 
-type MorningAdjustmentStepProps = {
-  readonly onStartDay: () => void;
+type MorningTimeBlocksStepProps = {
+  readonly onBack: () => void;
+  readonly onNext: () => void;
   readonly planning: ReturnType<typeof useDailyPlanner>;
 };
 
-function MorningAdjustmentStep({
-  onStartDay,
+function MorningTimeBlocksStep({
+  onBack,
+  onNext,
   planning,
-}: MorningAdjustmentStepProps) {
+}: MorningTimeBlocksStepProps) {
   const data = planning.data;
   if (!data) return null;
 
   return (
     <div className={spacingStyles.cardStack}>
-      <PlanningWorkspace
-        data={data}
+      <TimeBlocksSection
+        {...data}
         disabled={planning.isSaving}
         onCreate={planning.createTimeBlock}
         onDelete={planning.deleteTimeBlock}
@@ -28,26 +30,21 @@ function MorningAdjustmentStep({
         onLock={planning.setTimeBlockLocked}
         onMerge={planning.mergeTimeBlocks}
         onMove={planning.moveTimeBlock}
-        onMoveTask={planning.moveTask}
-        onPlaceTask={planning.placeTask}
-        onPlaceTasks={planning.placeTasks}
-        onRemoveTask={planning.removeTask}
         onResize={planning.resizeTimeBlock}
+        onScheduleTask={planning.scheduleTaskInSlot}
         onSplit={planning.splitTimeBlock}
         onUnlinkProject={planning.unlinkProject}
         onUnlinkTask={planning.unlinkTask}
-        onUnscheduleTask={planning.unscheduleTask}
         onUpdate={planning.updateTimeBlock}
       />
-      <DayPlanActions
+      <MorningStepActions
         disabled={planning.isSaving}
-        onSaveDraft={() => void planning.saveDraft()}
-        onStartDay={onStartDay}
-        persisted={data.plan.persisted}
-        status={data.plan.status}
+        nextLabel="Review the day"
+        onBack={onBack}
+        onNext={onNext}
       />
     </div>
   );
 }
 
-export { MorningAdjustmentStep };
+export { MorningTimeBlocksStep };

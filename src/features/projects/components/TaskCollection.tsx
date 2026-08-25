@@ -29,7 +29,14 @@ function TaskCollection({ description, emptyMessage, id, tasks, title }: TaskCol
               <li className={spacingStyles.item} key={task.id}>
                 <div className={spacingStyles.detailStack}>
                   <div className={spacingStyles.cluster}>
-                    <h3 className={typographyStyles.itemTitle}>{task.title}</h3>
+                    <h3 className={typographyStyles.itemTitle}>
+                      <a
+                        className={colorStyles.focusRing}
+                        href={`/tasks/${encodeURIComponent(task.id)}`}
+                      >
+                        {task.title}
+                      </a>
+                    </h3>
                     <TaskStatusBadge status={task.status} />
                   </div>
                   <TaskMetadata task={task} />

@@ -18,7 +18,7 @@ function DeleteConfirmation({
   return (
     <div className={spacingStyles.cardStack}>
       <p className={cn(typographyStyles.body, colorStyles.text.muted)}>
-        This removes the thought from this browser. It cannot be recovered.
+        This removes the thought from Atlas. It cannot be recovered.
       </p>
       <div className={spacingStyles.cluster}>
         <Button disabled={disabled} onClick={onDelete} variant="danger">

@@ -1,10 +1,11 @@
 import {
   fieldClassName,
   fieldGroupClassName,
-  formGridClassName,
   labelClassName,
 } from "@/components/forms/fieldStyles";
 import type { TaskEditorValue } from "@/features/tasks/components/types";
+import { TaskContextFields } from "@/features/tasks/components/TaskContextFields";
+import { TaskEstimateFields } from "@/features/tasks/components/TaskEstimateFields";
 import { preferredTimes } from "@/domain";
 import { cn } from "@/lib/cn";
 import { colorStyles } from "@/theme/colors";
@@ -29,7 +30,7 @@ function TaskPlanningFields({ idPrefix, initialValue }: TaskPlanningFieldsProps)
       >
         Planning details
       </summary>
-      <div className={formGridClassName}>
+      <div className="grid gap-card @md:grid-cols-2">
         <div className={fieldGroupClassName}>
           <label className={labelClassName} htmlFor={`${idPrefix}-description`}>
             Description
@@ -43,50 +44,8 @@ function TaskPlanningFields({ idPrefix, initialValue }: TaskPlanningFieldsProps)
             rows={3}
           />
         </div>
-        <div className={fieldGroupClassName}>
-          <label className={labelClassName} htmlFor={`${idPrefix}-preferred-context`}>
-            Preferred context
-          </label>
-          <input
-            className={fieldClassName}
-            defaultValue={initialValue.preferredContext ?? ""}
-            id={`${idPrefix}-preferred-context`}
-            maxLength={80}
-            name="preferredContext"
-            placeholder="Office, phone, errands…"
-          />
-        </div>
-        <div className={fieldGroupClassName}>
-          <label className={labelClassName} htmlFor={`${idPrefix}-duration`}>
-            Estimated duration in minutes
-          </label>
-          <input
-            className={fieldClassName}
-            defaultValue={initialValue.estimatedDuration ?? ""}
-            id={`${idPrefix}-duration`}
-            inputMode="numeric"
-            min="1"
-            name="duration"
-            type="number"
-          />
-        </div>
-        <div className={fieldGroupClassName}>
-          <label className={labelClassName} htmlFor={`${idPrefix}-energy`}>
-            Energy
-          </label>
-          <select
-            className={fieldClassName}
-            defaultValue={initialValue.energyCost}
-            id={`${idPrefix}-energy`}
-            name="energy"
-          >
-            {[1, 2, 3, 4, 5].map((level) => (
-              <option key={level} value={level}>
-                {level} of 5
-              </option>
-            ))}
-          </select>
-        </div>
+        <TaskContextFields contexts={initialValue.contexts} idPrefix={idPrefix} />
+        <TaskEstimateFields idPrefix={idPrefix} initialValue={initialValue} />
         <div className={fieldGroupClassName}>
           <label className={labelClassName} htmlFor={`${idPrefix}-due`}>
             Due date
@@ -98,6 +57,24 @@ function TaskPlanningFields({ idPrefix, initialValue }: TaskPlanningFieldsProps)
             name="dueDate"
             type="date"
           />
+        </div>
+        <div className={fieldGroupClassName}>
+          <label className={labelClassName} htmlFor={`${idPrefix}-scheduled`}>
+            Scheduled date
+          </label>
+          <input
+            className={fieldClassName}
+            defaultValue={initialValue.scheduledDate ?? ""}
+            disabled={Boolean(initialValue.scheduledStart)}
+            id={`${idPrefix}-scheduled`}
+            name="scheduledDate"
+            type="date"
+          />
+          {initialValue.scheduledStart ? (
+            <p className={cn(typographyStyles.description, colorStyles.text.muted)}>
+              Exact scheduling is managed by its Planner Time Block.
+            </p>
+          ) : null}
         </div>
         <div className={fieldGroupClassName}>
           <label className={labelClassName} htmlFor={`${idPrefix}-preferred-time`}>

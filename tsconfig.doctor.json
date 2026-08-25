@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "incremental": false,
+    "isolatedModules": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".doctor-dist",
+    "rootDir": ".",
+    "target": "ES2022"
+  },
+  "include": [
+    "scripts/atlas-doctor.ts",
+    "scripts/atlas-doctor/**/*.ts",
+    "scripts/check-database-config.ts",
+    "src/server/config/databaseConfig.ts"
+  ]
+}

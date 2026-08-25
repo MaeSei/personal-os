@@ -188,3 +188,73 @@ test("nested sibling Tasks can be reordered without flattening hierarchy", async
 
   assert.deepEqual(nested.map((task) => task.id), [second.id, first.id]);
 });
+
+test("Milestones group Tasks and become the honest progress denominator", async () => {
+  const { itemRepository, service } = createWorkspace();
+  const task = await service.createTask({
+    areaId: "work",
+    energyCost: 2,
+    projectId: "project",
+    status: Status.Active,
+    title: "Grouped action",
+  });
+  const milestone = await service.createMilestone("project", {
+    description: "The first checkpoint is observable.",
+    dueDate: "2026-09-10",
+    title: "First checkpoint",
+  });
+
+  await service.groupTask("project", task.id, milestone.id);
+  await service.setMilestoneCompleted("project", milestone.id, true);
+  let detail = await service.loadProject("project");
+
+  assert.equal(detail?.detail.metrics.progressSource, "milestones");
+  assert.equal(detail?.detail.metrics.progress, 100);
+  assert.deepEqual(detail?.detail.taskGroups[1]?.tasks.map(({ id }) => id), [task.id]);
+  assert.deepEqual(
+    detail?.detail.timeline.map(({ kind }) => kind),
+    ["milestone-completed", "milestone-due"],
+  );
+
+  await service.deleteMilestone("project", milestone.id);
+  detail = await service.loadProject("project");
+  assert.equal(detail?.detail.milestones.length, 0);
+  assert.deepEqual(detail?.detail.taskGroups[0]?.tasks.map(({ id }) => id), [task.id]);
+  assert.ok((await itemRepository.get()).some((item) => item.id === "project"));
+});
+
+test("Project notes persist pinning and pinned notes sort first", async () => {
+  const { service } = createWorkspace();
+  const first = await service.createNote("project", "Decision: use the stable path.", false);
+  const second = await service.createNote("project", "Context needed every time.", true);
+  let detail = await service.loadProject("project");
+
+  assert.deepEqual(detail?.detail.notes.map(({ id }) => id), [second.id, first.id]);
+  await service.setNotePinned("project", first.id, true);
+  detail = await service.loadProject("project");
+  assert.equal(detail?.detail.notes.some((note) => note.id === first.id), true);
+
+  await service.deleteNote("project", second.id);
+  detail = await service.loadProject("project");
+  assert.deepEqual(detail?.detail.notes.map(({ id }) => id), [first.id]);
+});
+
+test("related Project links are visible from both Projects and can be removed", async () => {
+  const related = makeProject("related");
+  const { service } = createWorkspace([makeProject("project"), related]);
+
+  await service.linkRelatedProject("project", related.id);
+  await service.linkRelatedProject("project", related.id);
+  assert.deepEqual(
+    (await service.loadProject("project"))?.detail.relatedProjects.map(({ id }) => id),
+    [related.id],
+  );
+  assert.deepEqual(
+    (await service.loadProject(related.id))?.detail.relatedProjects.map(({ id }) => id),
+    ["project"],
+  );
+
+  await service.unlinkRelatedProject("project", related.id);
+  assert.deepEqual((await service.loadProject("project"))?.detail.relatedProjects, []);
+  assert.deepEqual((await service.loadProject(related.id))?.detail.relatedProjects, []);
+});

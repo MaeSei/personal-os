@@ -105,3 +105,109 @@ test("the Morning Workflow migration preserves accepted plans", () => {
   assert.match(rollback, /DROP COLUMN IF EXISTS "status"/);
   assert.match(rollback, /DROP TYPE IF EXISTS "day_plan_status"/);
 });
+
+test("the Context Engine migration backfills and can roll back Task contexts", () => {
+  const directory = path.join(
+    process.cwd(),
+    "prisma/migrations/20260825190000_context_engine",
+  );
+  const migration = readFileSync(path.join(directory, "migration.sql"), "utf8");
+  const rollback = readFileSync(path.join(directory, "down.sql"), "utf8");
+
+  assert.match(migration, /ADD COLUMN "contexts" TEXT\[\]/);
+  assert.match(migration, /"preferred_context"/);
+  assert.match(migration, /"context"/);
+  assert.doesNotMatch(migration, /\bINSERT\s+INTO\b/i);
+  assert.match(rollback, /"contexts"\[1\]/);
+  assert.match(rollback, /DROP COLUMN IF EXISTS "contexts"/);
+});
+
+test("the Effort Model migration adds confidence without inventing history", () => {
+  const directory = path.join(
+    process.cwd(),
+    "prisma/migrations/20260825200000_effort_model",
+  );
+  const migration = readFileSync(path.join(directory, "migration.sql"), "utf8");
+  const rollback = readFileSync(path.join(directory, "down.sql"), "utf8");
+
+  assert.match(migration, /CREATE TYPE "estimate_confidence"/);
+  assert.match(migration, /ADD COLUMN "estimate_confidence"/);
+  assert.doesNotMatch(migration, /actual|history|INSERT\s+INTO/i);
+  assert.match(rollback, /DROP COLUMN IF EXISTS "estimate_confidence"/);
+  assert.match(rollback, /DROP TYPE IF EXISTS "estimate_confidence"/);
+});
+
+test("the Daily Workspace migration persists intent without changing Tasks", () => {
+  const directory = path.join(
+    process.cwd(),
+    "prisma/migrations/20260825210000_daily_workspace",
+  );
+  const migration = readFileSync(path.join(directory, "migration.sql"), "utf8");
+  const rollback = readFileSync(path.join(directory, "down.sql"), "utf8");
+
+  assert.match(migration, /ADD COLUMN "is_pinned" BOOLEAN/);
+  assert.match(migration, /ADD COLUMN "is_focused" BOOLEAN/);
+  assert.match(migration, /ADD COLUMN "group_title" TEXT/);
+  assert.match(migration, /day_plan_tasks_one_focus_idx/);
+  assert.doesNotMatch(migration, /ALTER TABLE "items"/);
+  assert.match(rollback, /DROP COLUMN IF EXISTS "group_title"/);
+});
+
+test("the Focus Session migration stores execution context on daily commitments", () => {
+  const directory = path.join(
+    process.cwd(),
+    "prisma/migrations/20260825220000_focus_session",
+  );
+  const migration = readFileSync(path.join(directory, "migration.sql"), "utf8");
+  const rollback = readFileSync(path.join(directory, "down.sql"), "utf8");
+
+  assert.match(migration, /ADD COLUMN "focus_started_at" TIMESTAMPTZ\(3\)/);
+  assert.match(migration, /ADD COLUMN "focus_elapsed_seconds" INTEGER/);
+  assert.match(migration, /ADD COLUMN "focus_notes" TEXT/);
+  assert.match(migration, /ADD COLUMN "focus_checklist" JSONB/);
+  assert.doesNotMatch(migration, /ALTER TABLE "items"/);
+  assert.doesNotMatch(migration, /pomodoro/i);
+  assert.match(rollback, /DROP COLUMN IF EXISTS "focus_checklist"/);
+});
+
+test("the Google Calendar migration stores encrypted sync state and indexed cache rows", () => {
+  const directory = path.join(
+    process.cwd(),
+    "prisma/migrations/20260825230000_google_calendar",
+  );
+  const migration = readFileSync(path.join(directory, "migration.sql"), "utf8");
+  const rollback = readFileSync(path.join(directory, "down.sql"), "utf8");
+
+  for (const table of [
+    "calendar_connections",
+    "connected_calendars",
+    "cached_calendar_events",
+  ]) {
+    assert.match(migration, new RegExp(`CREATE TABLE "${table}"`));
+    assert.match(rollback, new RegExp(`DROP TABLE IF EXISTS "${table}"`));
+  }
+  assert.match(migration, /"encrypted_refresh_token" TEXT NOT NULL/);
+  assert.doesNotMatch(migration, /"refresh_token" TEXT NOT NULL/);
+  assert.match(migration, /connected_calendars_selected_idx/);
+  assert.match(migration, /cached_calendar_events_range_idx/);
+  assert.match(migration, /ON DELETE CASCADE/);
+});
+
+test("the Daily Wrap-Up migration stores evidence without changing Tasks", () => {
+  const directory = path.join(
+    process.cwd(),
+    "prisma/migrations/20260825233000_daily_wrap_up",
+  );
+  const migration = readFileSync(path.join(directory, "migration.sql"), "utf8");
+  const rollback = readFileSync(path.join(directory, "down.sql"), "utf8");
+
+  for (const table of ["daily_wrap_ups", "daily_wrap_up_tasks"]) {
+    assert.match(migration, new RegExp(`CREATE TABLE "${table}"`));
+    assert.match(rollback, new RegExp(`DROP TABLE IF EXISTS "${table}"`));
+  }
+  assert.match(migration, /"actual_duration_seconds" INTEGER/);
+  assert.match(migration, /"carried_forward" BOOLEAN NOT NULL/);
+  assert.match(migration, /ON DELETE CASCADE/);
+  assert.doesNotMatch(migration, /ALTER TABLE "items"/);
+  assert.doesNotMatch(migration, /\bINSERT\s+INTO\b/i);
+});

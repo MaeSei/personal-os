@@ -19,9 +19,12 @@ class ManualBreakdownService implements BreakdownFeature {
       .map((task): TaskWriteInput => ({
         areaId: task.areaId,
         context: task.context ?? null,
+        contexts: task.contexts,
         description: task.description ?? null,
         dueDate: task.dueDate ?? null,
         durationMinutes: task.durationMinutes ?? null,
+        effort: task.effort ?? task.energyCost ?? 3,
+        estimateConfidence: task.estimateConfidence ?? null,
         estimatedDuration: task.estimatedDuration ?? task.durationMinutes ?? null,
         energyCost: task.energyCost ?? 3,
         projectId: request.projectId,

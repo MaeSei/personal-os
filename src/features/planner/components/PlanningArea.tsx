@@ -18,6 +18,7 @@ type PlanningAreaProps = Pick<DailyPlannerData, "commitments" | "suggestions" | 
   readonly onMove: (taskId: string, direction: "down" | "up") => void;
   readonly onPlace: (taskId: string, beforeTaskId?: string | null) => Promise<boolean>;
   readonly onRemove: (taskId: string) => Promise<boolean>;
+  readonly onSchedule?: (taskId: string, start: number) => Promise<boolean>;
   readonly onUnschedule: (taskId: string) => void;
 };
 
@@ -28,6 +29,7 @@ function PlanningArea({
   onMove,
   onPlace,
   onRemove,
+  onSchedule,
   onUnschedule,
   suggestions,
   timeBlocks,
@@ -50,16 +52,26 @@ function PlanningArea({
 
   return (
     <Section
-      description="Rule-based suggestions are starting points only. Drag or add the work you intend to do."
+      description="Choose the work that belongs today. Suggestions remain optional until you add or schedule them."
       id="suggested-planning"
-      title="Today&apos;s Plan"
+      title="Today&apos;s Tasks"
     >
       {suggestions.length > 0 ? (
         <div className={spacingStyles.detailStack}>
           <h3 className={cn(typographyStyles.label, colorStyles.text.muted)}>Suggested, not chosen</h3>
           <div className={cn(spacingStyles.cardGrid, "lg:grid-cols-2")}>
-            {suggestions.map(({ reason, task }) => (
-              <PlannerTaskCard disabled={disabled} key={task.id} onAdd={() => void placeAndFocus(task.id)} reason={reason} task={task} />
+            {suggestions.map(({ placement, reason, task }) => (
+              <PlannerTaskCard
+                disabled={disabled}
+                key={task.id}
+                onAdd={() => void placeAndFocus(task.id)}
+                onScheduleSuggested={onSchedule
+                  ? () => void onSchedule(task.id, placement.start)
+                  : undefined}
+                reason={reason}
+                suggestedPlacement={placement}
+                task={task}
+              />
             ))}
           </div>
         </div>
@@ -70,7 +82,7 @@ function PlanningArea({
       )}
 
       <div className={spacingStyles.detailStack}>
-        <h3 className={cn(typographyStyles.label, colorStyles.text.muted)}>Chosen order</h3>
+        <h3 className={cn(typographyStyles.label, colorStyles.text.muted)}>Chosen for today</h3>
         <TaskDropZone
           className={cn("min-h-32 p-card", spacingStyles.cardStack)}
           disabled={disabled}

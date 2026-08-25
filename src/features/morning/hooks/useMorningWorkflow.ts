@@ -14,8 +14,8 @@ function getInitialStage(
 ): MorningStage | null {
   if (!data) return null;
   if (data.plan.status === DayPlanStatus.Started) return "started";
-  if (data.plan.persisted) return "adjustments";
-  return data.attention ? "attention" : "review";
+  if (data.plan.persisted) return "workspace";
+  return data.attention ? "calendar" : "review";
 }
 
 function useMorningWorkflow() {
@@ -30,11 +30,23 @@ function useMorningWorkflow() {
     const result = await checkIn.submit();
     if (!result) return;
     await planning.reload();
-    setStage("attention");
+    setStage("calendar");
   }
 
-  async function saveAndLeave() {
+  async function saveDraft() {
+    if (stage) setStage(stage);
+    return planning.saveDraft();
+  }
+
+  async function resumeLater() {
+    if (stage) setStage(stage);
     if (await planning.saveDraft()) router.push("/");
+  }
+
+  async function discardDraft() {
+    const discarded = await planning.discardDraft();
+    if (discarded) setStage("workspace");
+    return discarded;
   }
 
   async function startDay() {
@@ -43,10 +55,11 @@ function useMorningWorkflow() {
 
   return {
     checkIn,
+    discardDraft,
     planning,
-    saveAndLeave,
+    resumeLater,
+    saveDraft,
     setStage,
-    skipForNow: () => router.push("/"),
     stage,
     startDay,
     completeReview,

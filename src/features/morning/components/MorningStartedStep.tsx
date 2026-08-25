@@ -30,7 +30,7 @@ function MorningStartedStep({
           </p>
         </div>
         <div className={spacingStyles.cluster}>
-          <ButtonLink href="/" size="lg">Mission Control</ButtonLink>
+          <ButtonLink href="/" size="lg">Workspace</ButtonLink>
           <ButtonLink href="/focus" size="lg" variant="secondary">
             Open Focus Mode
           </ButtonLink>

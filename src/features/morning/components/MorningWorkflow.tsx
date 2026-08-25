@@ -5,13 +5,15 @@ import { Card } from "@/components/ui/Card";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageStatus } from "@/components/ui/PageStatus";
-import { MorningAdjustmentStep } from "@/features/morning/components/MorningAdjustmentStep";
-import { MorningAttentionStep } from "@/features/morning/components/MorningAttentionStep";
+import { MorningAvailabilityStep } from "@/features/morning/components/MorningAvailabilityStep";
 import { MorningCalendarStep } from "@/features/morning/components/MorningCalendarStep";
+import { MorningPlanReviewStep } from "@/features/morning/components/MorningPlanReviewStep";
 import { MorningProgress } from "@/features/morning/components/MorningProgress";
 import { MorningReviewStep } from "@/features/morning/components/MorningReviewStep";
+import { MorningSessionActions } from "@/features/morning/components/MorningSessionActions";
 import { MorningStartedStep } from "@/features/morning/components/MorningStartedStep";
-import { MorningSuggestionsStep } from "@/features/morning/components/MorningSuggestionsStep";
+import { MorningTimeBlocksStep } from "@/features/morning/components/MorningTimeBlocksStep";
+import { MorningWorkspaceStep } from "@/features/morning/components/MorningWorkspaceStep";
 import { useMorningWorkflow } from "@/features/morning/hooks/useMorningWorkflow";
 import { spacingStyles } from "@/theme/spacing";
 import { typographyStyles } from "@/theme/typography";
@@ -40,14 +42,13 @@ function MorningWorkflow() {
       <div className={spacingStyles.pageStack}>
         <PageHeader
           action={stage === "started" ? undefined : (
-            <>
-              <Button onClick={workflow.skipForNow} variant="ghost">Skip for now</Button>
-              {stage !== "review" ? (
-                <Button disabled={planning.isSaving} onClick={() => void workflow.saveAndLeave()} variant="secondary">
-                  Save draft and leave
-                </Button>
-              ) : null}
-            </>
+            <MorningSessionActions
+              disabled={planning.isSaving}
+              hasDraft={data.plan.persisted}
+              onDiscard={workflow.discardDraft}
+              onResumeLater={workflow.resumeLater}
+              onSave={workflow.saveDraft}
+            />
           )}
           description="Move from capacity and fixed commitments to a day you have intentionally chosen."
           eyebrow={data.morning.dateLabel}
@@ -63,16 +64,21 @@ function MorningWorkflow() {
             review={workflow.checkIn}
           />
         ) : null}
-        {stage === "attention" ? (
-          <MorningAttentionStep attention={data.attention} onBack={() => workflow.setStage("review")} onNext={() => workflow.setStage("calendar")} />
-        ) : null}
         {stage === "calendar" ? (
-          <MorningCalendarStep calendar={data.calendar} onBack={() => workflow.setStage(data.attention ? "attention" : "review")} onNext={() => workflow.setStage("suggestions")} />
+          <MorningCalendarStep calendar={data.calendar} onBack={data.attention ? undefined : () => workflow.setStage("review")} onNext={() => workflow.setStage("availability")} />
         ) : null}
-        {stage === "suggestions" ? (
-          <MorningSuggestionsStep {...data} disabled={planning.isSaving} onBack={() => workflow.setStage("calendar")} onMove={planning.moveTask} onNext={() => workflow.setStage("adjustments")} onPlace={planning.placeTask} onRemove={planning.removeTask} onUnschedule={planning.unscheduleTask} />
+        {stage === "availability" ? (
+          <MorningAvailabilityStep {...data} onBack={() => workflow.setStage("calendar")} onNext={() => workflow.setStage("workspace")} />
         ) : null}
-        {stage === "adjustments" ? <MorningAdjustmentStep onStartDay={() => void workflow.startDay()} planning={planning} /> : null}
+        {stage === "workspace" ? (
+          <MorningWorkspaceStep {...data} disabled={planning.isSaving} onBack={() => workflow.setStage("availability")} onMove={planning.moveTask} onNext={() => workflow.setStage("timeBlocks")} onPlace={planning.placeTask} onRemove={planning.removeTask} onSchedule={planning.scheduleTaskInSlot} onUnschedule={planning.unscheduleTask} />
+        ) : null}
+        {stage === "timeBlocks" ? (
+          <MorningTimeBlocksStep onBack={() => workflow.setStage("workspace")} onNext={() => workflow.setStage("confirm")} planning={planning} />
+        ) : null}
+        {stage === "confirm" ? (
+          <MorningPlanReviewStep {...data} disabled={planning.isSaving} onBack={() => workflow.setStage("timeBlocks")} onStartDay={() => void workflow.startDay()} />
+        ) : null}
         {stage === "started" ? <MorningStartedStep commitments={data.commitments} timeBlocks={data.timeBlocks} /> : null}
       </div>
     </PageContainer>

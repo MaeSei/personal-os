@@ -4,10 +4,11 @@ import path from "node:path";
 import test from "node:test";
 
 import { ApplicationContainer } from "../src/application/ApplicationContainer";
-import { MockCalendarProvider } from "../src/calendar";
 import { initialAreas, Status, type Area } from "../src/domain";
 import type { AreaRepository } from "../src/repositories/AreaRepository";
 import { MockDailyReviewRepository } from "../src/repositories/MockDailyReviewRepository";
+import { MockDailyWrapUpRepository } from "../src/repositories/MockDailyWrapUpRepository";
+import { MockCalendarRepository } from "../src/repositories/MockCalendarRepository";
 import { MockDayPlanRepository } from "../src/repositories/MockDayPlanRepository";
 import { MockItemRepository } from "../src/repositories/MockItemRepository";
 import type {
@@ -35,9 +36,11 @@ class MemoryRepositoryFactory implements RepositoryFactory {
     this.calls += 1;
     return {
       areas: new AreaMemoryRepository(),
+      calendars: new MockCalendarRepository(),
       items: new MockItemRepository(),
       plans: new MockDayPlanRepository(),
       reviews: new MockDailyReviewRepository(),
+      wrapUps: new MockDailyWrapUpRepository(),
     };
   }
 }
@@ -53,7 +56,8 @@ function sourceFiles(directory: string): readonly string[] {
 test("ApplicationContainer exposes feature contracts and hides construction", async () => {
   const repositoryFactory = new MemoryRepositoryFactory();
   const container = new ApplicationContainer(repositoryFactory, {
-    calendarProvider: new MockCalendarProvider(),
+    calendarProvider: null,
+    calendarTokenCipher: null,
     createId: () => "captured-item",
     missionControlContext: {
       locale: "en-GB",
@@ -70,12 +74,16 @@ test("ApplicationContainer exposes feature contracts and hides construction", as
   assert.deepEqual(Object.keys(container.features).sort(), [
     "areas",
     "breakdown",
+    "calendar",
     "focus",
     "inbox",
     "missionControl",
     "planner",
     "projects",
     "review",
+    "tasks",
+    "workspace",
+    "wrapUp",
   ]);
   assert.equal("repositories" in container, false);
   assert.equal("services" in container, false);
@@ -100,7 +108,7 @@ test("PostgreSQL repositories are instantiated only by their server factory", ()
   const sourceRoot = path.join(process.cwd(), "src");
   const instantiations = sourceFiles(sourceRoot).filter((file) => {
     const source = readFileSync(file, "utf8");
-    return /new Prisma(?:Area|Item|DailyReview|DayPlan)Repository\(/.test(source);
+    return /new Prisma(?:Area|Calendar|Item|DailyReview|DailyWrapUp|DayPlan)Repository\(/.test(source);
   });
 
   assert.deepEqual(

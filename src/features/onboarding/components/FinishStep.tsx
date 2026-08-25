@@ -80,7 +80,7 @@ function FinishStep({
             </ul>
             <div className={spacingStyles.cluster}>
               <Button onClick={onFinish} size="lg">
-                Open Mission Control
+                Open Workspace
               </Button>
             </div>
           </div>

@@ -2,11 +2,15 @@ import type { AtlasFeatures } from "@/features/contracts/AtlasFeatures";
 
 const DATE_KEYS = new Set([
   "createdAt",
+  "connectedAt",
+  "at",
   "end",
   "lastActivity",
+  "lastSyncedAt",
   "scheduledEnd",
   "scheduledStart",
   "start",
+  "startedAt",
   "updatedAt",
 ]);
 
@@ -68,10 +72,36 @@ const httpFeatures: AtlasFeatures = {
     breakDown: (request) =>
       callFeature("breakdown", "breakDown", [request]),
   },
+  calendar: {
+    disconnect: () => callFeature("calendar", "disconnect"),
+    getConnection: () => callFeature("calendar", "getConnection"),
+    refresh: () => callFeature("calendar", "refresh"),
+    selectCalendars: (calendarIds) =>
+      callFeature("calendar", "selectCalendars", [calendarIds]),
+  },
   focus: {
+    addChecklistItem: (taskId, title) =>
+      callFeature("focus", "addChecklistItem", [taskId, title]),
     completeItem: (itemId) =>
       callFeature("focus", "completeItem", [itemId]),
+    loadFocusSession: () => callFeature("focus", "loadFocusSession"),
     loadFocusMode: () => callFeature("focus", "loadFocusMode"),
+    pauseSession: (taskId) =>
+      callFeature("focus", "pauseSession", [taskId]),
+    removeChecklistItem: (taskId, checklistItemId) =>
+      callFeature("focus", "removeChecklistItem", [taskId, checklistItemId]),
+    resumeSession: (taskId) =>
+      callFeature("focus", "resumeSession", [taskId]),
+    setChecklistItemCompleted: (taskId, checklistItemId, completed) =>
+      callFeature("focus", "setChecklistItemCompleted", [
+        taskId,
+        checklistItemId,
+        completed,
+      ]),
+    switchTask: (taskId) =>
+      callFeature("focus", "switchTask", [taskId]),
+    updateNotes: (taskId, notes) =>
+      callFeature("focus", "updateNotes", [taskId, notes]),
   },
   inbox: {
     addFirstTask: (projectId, title) =>
@@ -99,6 +129,7 @@ const httpFeatures: AtlasFeatures = {
       callFeature("planner", "createTimeBlock", [input]),
     deleteTimeBlock: (blockId) =>
       callFeature("planner", "deleteTimeBlock", [blockId]),
+    discardDraft: () => callFeature("planner", "discardDraft"),
     duplicateTimeBlock: (blockId, start) =>
       callFeature("planner", "duplicateTimeBlock", [blockId, start]),
     linkProjectToTimeBlock: (blockId, projectId) =>
@@ -120,6 +151,8 @@ const httpFeatures: AtlasFeatures = {
       callFeature("planner", "removeTask", [taskId]),
     resizeTimeBlock: (blockId, end) =>
       callFeature("planner", "resizeTimeBlock", [blockId, end]),
+    scheduleTaskInSlot: (taskId, start) =>
+      callFeature("planner", "scheduleTaskInSlot", [taskId, start]),
     saveDraft: () => callFeature("planner", "saveDraft"),
     setTimeBlockLocked: (blockId, locked) =>
       callFeature("planner", "setTimeBlockLocked", [blockId, locked]),
@@ -138,26 +171,79 @@ const httpFeatures: AtlasFeatures = {
   projects: {
     completeOnboarding: (input) =>
       callFeature("projects", "completeOnboarding", [input]),
+    createMilestone: (projectId, input) =>
+      callFeature("projects", "createMilestone", [projectId, input]),
+    createNote: (projectId, body, pinned) =>
+      callFeature("projects", "createNote", [projectId, body, pinned]),
     createTask: (input) => callFeature("projects", "createTask", [input]),
     createTasks: (inputs) =>
       callFeature("projects", "createTasks", [inputs]),
     deleteTask: (taskId) =>
       callFeature("projects", "deleteTask", [taskId]),
+    deleteMilestone: (projectId, milestoneId) =>
+      callFeature("projects", "deleteMilestone", [projectId, milestoneId]),
+    deleteNote: (projectId, noteId) =>
+      callFeature("projects", "deleteNote", [projectId, noteId]),
     getProjects: () => callFeature("projects", "getProjects"),
     loadOverview: (filters) =>
       callFeature("projects", "loadOverview", [filters]),
     loadProject: (projectId) =>
       callFeature("projects", "loadProject", [projectId]),
+    groupTask: (projectId, taskId, milestoneId) =>
+      callFeature("projects", "groupTask", [projectId, taskId, milestoneId]),
+    linkRelatedProject: (projectId, relatedProjectId) =>
+      callFeature("projects", "linkRelatedProject", [projectId, relatedProjectId]),
     reorderTask: (projectId, taskId, direction) =>
       callFeature("projects", "reorderTask", [projectId, taskId, direction]),
     updateTask: (taskId, input) =>
       callFeature("projects", "updateTask", [taskId, input]),
+    setMilestoneCompleted: (projectId, milestoneId, completed) =>
+      callFeature("projects", "setMilestoneCompleted", [projectId, milestoneId, completed]),
+    setNotePinned: (projectId, noteId, pinned) =>
+      callFeature("projects", "setNotePinned", [projectId, noteId, pinned]),
+    unlinkRelatedProject: (projectId, relatedProjectId) =>
+      callFeature("projects", "unlinkRelatedProject", [projectId, relatedProjectId]),
   },
   review: {
     completeReview: (input) =>
       callFeature("review", "completeReview", [input]),
     getLatestReview: () => callFeature("review", "getLatestReview"),
     getReviewHistory: () => callFeature("review", "getReviewHistory"),
+  },
+  tasks: {
+    convertToProject: (taskId, outcome) =>
+      callFeature("tasks", "convertToProject", [taskId, outcome]),
+    deleteTask: (taskId) => callFeature("tasks", "deleteTask", [taskId]),
+    detachFromProject: (taskId) =>
+      callFeature("tasks", "detachFromProject", [taskId]),
+    duplicateTask: (taskId) =>
+      callFeature("tasks", "duplicateTask", [taskId]),
+    loadTask: (taskId) => callFeature("tasks", "loadTask", [taskId]),
+    moveTask: (taskId, input) =>
+      callFeature("tasks", "moveTask", [taskId, input]),
+    updateTask: (taskId, input) =>
+      callFeature("tasks", "updateTask", [taskId, input]),
+  },
+  workspace: {
+    archiveTask: (taskId) =>
+      callFeature("workspace", "archiveTask", [taskId]),
+    focusTask: (taskId) =>
+      callFeature("workspace", "focusTask", [taskId]),
+    loadWorkspace: (filters) =>
+      callFeature("workspace", "loadWorkspace", [filters]),
+    placeTask: (input) =>
+      callFeature("workspace", "placeTask", [input]),
+    removeTask: (taskId) =>
+      callFeature("workspace", "removeTask", [taskId]),
+    setTaskGroup: (taskId, group) =>
+      callFeature("workspace", "setTaskGroup", [taskId, group]),
+    setTaskPinned: (taskId, pinned) =>
+      callFeature("workspace", "setTaskPinned", [taskId, pinned]),
+  },
+  wrapUp: {
+    completeWrapUp: (input) =>
+      callFeature("wrapUp", "completeWrapUp", [input]),
+    loadWrapUp: () => callFeature("wrapUp", "loadWrapUp"),
   },
 };
 

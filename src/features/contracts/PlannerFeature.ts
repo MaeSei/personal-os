@@ -1,7 +1,9 @@
 import type {
   CalendarDate,
   DayPlanStatus,
+  Effort,
   EnergyCost,
+  EstimateConfidence,
   PreferredTime,
   TaskStatus,
   TimeBlockType,
@@ -23,7 +25,10 @@ type PlannerInboxItem = {
 type PlannerTask = {
   readonly area: { readonly icon: string; readonly id: string; readonly title: string };
   readonly context: string | null;
+  readonly contexts: readonly string[];
   readonly dueDate: CalendarDate | null;
+  readonly effort: Effort;
+  readonly estimateConfidence: EstimateConfidence | null;
   readonly estimatedDuration: number | null;
   readonly energyCost: EnergyCost;
   readonly id: string;
@@ -38,8 +43,16 @@ type PlannerTask = {
 };
 
 type PlanningSuggestion = {
+  readonly placement: PlannerAvailableSlot;
   readonly reason: string;
   readonly task: PlannerTask;
+};
+
+type PlannerAvailableSlot = {
+  /** Whole schedulable minutes inside this local-day slot. */
+  readonly duration: number;
+  readonly end: number;
+  readonly start: number;
 };
 
 type PlannerTimeBlock = {
@@ -67,6 +80,7 @@ type DailyPlannerData = {
     readonly remainingMinutes: number;
     readonly totalMinutes: number;
   };
+  readonly availableSlots: readonly PlannerAvailableSlot[];
   readonly calendar: {
     readonly connected: boolean;
     readonly events: readonly CalendarEvent[];
@@ -114,6 +128,7 @@ type TimeBlockUpdateInput = Pick<
 interface PlannerFeature {
   createTimeBlock(input: TimeBlockWriteInput): Promise<DailyPlannerData>;
   deleteTimeBlock(blockId: string): Promise<DailyPlannerData>;
+  discardDraft(): Promise<DailyPlannerData>;
   duplicateTimeBlock(blockId: string, start: number): Promise<DailyPlannerData>;
   linkProjectToTimeBlock(blockId: string, projectId: string): Promise<DailyPlannerData>;
   linkTaskToTimeBlock(blockId: string, taskId: string): Promise<DailyPlannerData>;
@@ -125,6 +140,7 @@ interface PlannerFeature {
   placeTasks(taskIds: readonly string[]): Promise<DailyPlannerData>;
   removeTask(taskId: string): Promise<DailyPlannerData>;
   resizeTimeBlock(blockId: string, end: number): Promise<DailyPlannerData>;
+  scheduleTaskInSlot(taskId: string, start: number): Promise<DailyPlannerData>;
   saveDraft(): Promise<DailyPlannerData>;
   setTimeBlockLocked(blockId: string, locked: boolean): Promise<DailyPlannerData>;
   splitTimeBlock(blockId: string, splitAt: number): Promise<DailyPlannerData>;
@@ -138,6 +154,7 @@ interface PlannerFeature {
 export type {
   DailyPlannerData,
   PlannerFeature,
+  PlannerAvailableSlot,
   PlannerInboxItem,
   PlannerProject,
   PlannerTask,

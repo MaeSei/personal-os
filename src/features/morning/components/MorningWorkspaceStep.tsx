@@ -7,7 +7,7 @@ import { MorningStepActions } from "@/features/morning/components/MorningStepAct
 import { PlanningArea } from "@/features/planner/components/PlanningArea";
 import { spacingStyles } from "@/theme/spacing";
 
-type MorningSuggestionsStepProps = Pick<
+type MorningWorkspaceStepProps = Pick<
   DailyPlannerData,
   "commitments" | "suggestions" | "timeBlocks"
 > & {
@@ -17,10 +17,11 @@ type MorningSuggestionsStepProps = Pick<
   readonly onNext: () => void;
   readonly onPlace: (taskId: string, beforeTaskId?: string | null) => Promise<boolean>;
   readonly onRemove: (taskId: string) => Promise<boolean>;
+  readonly onSchedule: (taskId: string, start: number) => Promise<boolean>;
   readonly onUnschedule: (taskId: string) => void;
 };
 
-function MorningSuggestionsStep(props: MorningSuggestionsStepProps) {
+function MorningWorkspaceStep(props: MorningWorkspaceStepProps) {
   const planFocusRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -28,7 +29,7 @@ function MorningSuggestionsStep(props: MorningSuggestionsStepProps) {
       <PlanningArea {...props} focusRef={planFocusRef} />
       <MorningStepActions
         disabled={props.disabled}
-        nextLabel="Adjust the plan"
+        nextLabel="Plan time blocks"
         onBack={props.onBack}
         onNext={props.onNext}
       />
@@ -36,4 +37,4 @@ function MorningSuggestionsStep(props: MorningSuggestionsStepProps) {
   );
 }
 
-export { MorningSuggestionsStep };
+export { MorningWorkspaceStep };

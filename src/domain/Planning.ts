@@ -2,6 +2,7 @@ import type { ActionableItem } from "./Focus";
 import type { CalendarDate, Item, ItemId } from "./Item";
 import { Status } from "./Status";
 import { isTask } from "./Task";
+import { createFocusSession, type FocusSession } from "./FocusSession";
 
 const MINUTES_PER_DAY = 24 * 60;
 
@@ -39,6 +40,7 @@ type TimeBlock = {
 };
 
 type DayPlan = {
+  readonly commitments: readonly DayPlanCommitment[];
   readonly createdAt: Date;
   readonly date: CalendarDate;
   readonly id: string;
@@ -47,6 +49,14 @@ type DayPlan = {
   readonly timeBlocks: readonly TimeBlock[];
   readonly timeZone: string;
   readonly updatedAt: Date;
+};
+
+type DayPlanCommitment = {
+  readonly focused: boolean;
+  readonly group: string | null;
+  readonly pinned: boolean;
+  readonly session: FocusSession;
+  readonly taskId: ItemId;
 };
 
 type TimeBlockValues = Pick<
@@ -81,6 +91,35 @@ function normalizeIds(values: readonly ItemId[]): readonly ItemId[] {
   return [...new Set(ids)];
 }
 
+function normalizeCommitmentGroup(value: string | null | undefined): string | null {
+  const group = value?.trim() || null;
+  if (group && group.length > 60) {
+    throw new Error("A Daily Workspace group must be 60 characters or fewer.");
+  }
+  return group;
+}
+
+function normalizeCommitments(
+  taskIds: readonly ItemId[],
+  values: readonly DayPlanCommitment[],
+): readonly DayPlanCommitment[] {
+  const byTaskId = new Map(values.map((value) => [value.taskId, value]));
+  const commitments = taskIds.map((taskId) => {
+    const value = byTaskId.get(taskId);
+    return {
+      focused: value?.focused ?? false,
+      group: normalizeCommitmentGroup(value?.group),
+      pinned: value?.pinned ?? false,
+      session: createFocusSession(value?.session),
+      taskId,
+    };
+  });
+  if (commitments.filter(({ focused }) => focused).length > 1) {
+    throw new Error("A Daily Workspace can have only one focused Task.");
+  }
+  return commitments;
+}
+
 function normalizeBlock(values: TimeBlockValues): TimeBlockValues {
   const title = values.title.trim();
   if (!title) throw new Error("A Time Block requires a title.");
@@ -113,6 +152,7 @@ function assertTimeBlocksDoNotOverlap(blocks: readonly TimeBlock[]) {
 }
 
 function createDayPlan(input: {
+  readonly commitments?: readonly DayPlanCommitment[];
   readonly createdAt: Date;
   readonly date: string;
   readonly id: string;
@@ -125,12 +165,16 @@ function createDayPlan(input: {
   const timeZone = input.timeZone.trim();
   if (!id || !timeZone) throw new Error("A Day Plan requires an id and time zone.");
   const createdAt = new Date(input.createdAt.getTime());
+  const taskIds = [...new Set(
+    input.taskIds ?? input.commitments?.map(({ taskId }) => taskId) ?? [],
+  )];
   return {
+    commitments: normalizeCommitments(taskIds, input.commitments ?? []),
     createdAt,
     date: input.date,
     id,
     status: input.status ?? DayPlanStatus.Draft,
-    taskIds: [...new Set(input.taskIds ?? [])],
+    taskIds,
     timeBlocks: [],
     timeZone,
     updatedAt: new Date(createdAt.getTime()),
@@ -230,16 +274,25 @@ function splitTimeBlock(
 
 function updateDayPlan(
   plan: DayPlan,
-  changes: Partial<Pick<DayPlan, "status" | "taskIds" | "timeBlocks">>,
+  changes: Partial<
+    Pick<DayPlan, "commitments" | "status" | "taskIds" | "timeBlocks">
+  >,
   now: Date = new Date(),
 ): DayPlan {
   const timeBlocks = [...(changes.timeBlocks ?? plan.timeBlocks)]
     .sort((left, right) => left.start - right.start || left.id.localeCompare(right.id));
   assertTimeBlocksDoNotOverlap(timeBlocks);
+  const taskIds = [...new Set(
+    changes.taskIds ?? changes.commitments?.map(({ taskId }) => taskId) ?? plan.taskIds,
+  )];
   return {
     ...plan,
+    commitments: normalizeCommitments(
+      taskIds,
+      changes.commitments ?? plan.commitments,
+    ),
     status: changes.status ?? plan.status,
-    taskIds: [...new Set(changes.taskIds ?? plan.taskIds)],
+    taskIds,
     timeBlocks,
     updatedAt: new Date(now.getTime()),
   };
@@ -247,7 +300,7 @@ function updateDayPlan(
 
 /** Projects an accepted plan into executable Tasks without changing Item state. */
 function getPlannedTasks(
-  plan: Pick<DayPlan, "taskIds">,
+  plan: Pick<DayPlan, "commitments" | "taskIds">,
   items: readonly Item[],
 ): readonly ActionableItem[] {
   const tasks = new Map<string, ActionableItem>();
@@ -258,7 +311,11 @@ function getPlannedTasks(
     item.children.forEach(visit);
   }
   items.forEach(visit);
-  return plan.taskIds.flatMap((taskId) => {
+  const focusedTaskId = plan.commitments.find(({ focused }) => focused)?.taskId;
+  const taskIds = focusedTaskId
+    ? [focusedTaskId, ...plan.taskIds.filter((taskId) => taskId !== focusedTaskId)]
+    : plan.taskIds;
+  return taskIds.flatMap((taskId) => {
     const task = tasks.get(taskId);
     return task ? [task] : [];
   });
@@ -279,4 +336,10 @@ export {
   updateDayPlan,
   updateTimeBlock,
 };
-export type { DayPlan, TimeBlock, TimeBlockId, TimeBlockValues };
+export type {
+  DayPlan,
+  DayPlanCommitment,
+  TimeBlock,
+  TimeBlockId,
+  TimeBlockValues,
+};

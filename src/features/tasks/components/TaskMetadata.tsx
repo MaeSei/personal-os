@@ -1,4 +1,4 @@
-import type { Task } from "@/domain";
+import { getTaskContexts, getTaskEstimate, type Task } from "@/domain";
 import { formatCalendarDate } from "@/features/projects/presentation";
 import { cn } from "@/lib/cn";
 import { colorStyles } from "@/theme/colors";
@@ -22,13 +22,17 @@ function formatScheduledRange(start: Date, end: Date): string {
 }
 
 function TaskMetadata({ task }: TaskMetadataProps) {
+  const contexts = getTaskContexts(task);
+  const estimate = getTaskEstimate(task);
   const values = [
-    task.estimatedDuration ?? task.durationMinutes
-      ? `${task.estimatedDuration ?? task.durationMinutes} min estimated`
+    estimate.durationMinutes
+      ? `${estimate.durationMinutes} min estimated`
       : null,
-    `Energy ${task.energyCost}/5`,
-    task.preferredContext ?? task.context
-      ? `Context: ${task.preferredContext ?? task.context}`
+    `Effort ${estimate.effort}/5`,
+    `Energy ${estimate.energy}/5`,
+    estimate.confidence ? `${estimate.confidence} confidence` : null,
+    contexts.length > 0
+      ? `Contexts: ${contexts.join(", ")}`
       : null,
     task.preferredTime ? `Prefers ${task.preferredTime.toLowerCase()}` : null,
     task.scheduledStart && task.scheduledEnd
@@ -46,4 +50,4 @@ function TaskMetadata({ task }: TaskMetadataProps) {
   );
 }
 
-export { TaskMetadata };
+export { TaskMetadata, formatScheduledRange };

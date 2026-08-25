@@ -81,6 +81,11 @@ function useDailyPlanner(planner: PlannerFeature) {
     data,
     deleteTimeBlock: (blockId: string) =>
       run(() => planner.deleteTimeBlock(blockId), "Time Block deleted."),
+    discardDraft: () =>
+      run(
+        () => planner.discardDraft(),
+        "Morning draft discarded. Your Tasks are unchanged.",
+      ),
     duplicateTimeBlock: (blockId: string, start: number) =>
       run(
         () => planner.duplicateTimeBlock(blockId, start),
@@ -132,6 +137,11 @@ function useDailyPlanner(planner: PlannerFeature) {
       run(() => planner.removeTask(taskId), "Task returned to the pool."),
     resizeTimeBlock: (blockId: string, end: number) =>
       run(() => planner.resizeTimeBlock(blockId, end), "Time Block resized."),
+    scheduleTaskInSlot: (taskId: string, start: number) =>
+      run(
+        () => planner.scheduleTaskInSlot(taskId, start),
+        "Task scheduled in an available slot.",
+      ),
     saveDraft: () =>
       run(() => planner.saveDraft(), "Morning plan saved as a draft."),
     setTimeBlockLocked: (blockId: string, locked: boolean) =>

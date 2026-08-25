@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import type { Task } from "@/domain";
+import { fieldClassName } from "@/components/forms/fieldStyles";
+import type { ProjectMilestone, Task } from "@/domain";
 import { Status, isTask } from "@/domain";
 import { TaskMetadata } from "@/features/tasks/components/TaskMetadata";
 import { TaskStatusBadge } from "@/features/tasks/components/TaskStatusBadge";
@@ -17,7 +18,10 @@ type TaskHierarchyProps = {
   readonly disabled: boolean;
   readonly onDelete: (taskId: string) => Promise<boolean>;
   readonly onEdit: (task: Task) => void;
+  readonly onGroup: (taskId: string, milestoneId: string | null) => Promise<boolean>;
   readonly onReorder: (taskId: string, direction: "down" | "up") => Promise<boolean>;
+  readonly groupId: string | null;
+  readonly milestones: readonly ProjectMilestone[];
   readonly tasks: readonly Task[];
 };
 
@@ -39,7 +43,14 @@ function TaskNode(props: TaskNodeProps) {
         <div className="flex flex-col items-start justify-between gap-cluster sm:flex-row">
           <div className={spacingStyles.detailStack}>
             <div className={spacingStyles.cluster}>
-              <h4 className={typographyStyles.itemTitle}>{task.title}</h4>
+              <h4 className={typographyStyles.itemTitle}>
+                <a
+                  className={colorStyles.focusRing}
+                  href={`/tasks/${encodeURIComponent(task.id)}`}
+                >
+                  {task.title}
+                </a>
+              </h4>
               <TaskStatusBadge status={task.status} />
             </div>
             {task.description ? (
@@ -48,6 +59,23 @@ function TaskNode(props: TaskNodeProps) {
             <TaskMetadata task={task} />
           </div>
           <div className={spacingStyles.cluster}>
+            {isRoot ? (
+              <select
+                aria-label={`Group ${task.title}`}
+                className={cn(fieldClassName, "h-control-sm py-0 text-sm")}
+                disabled={disabled}
+                onChange={(event) => void props.onGroup(task.id, event.target.value || null)}
+                value={props.groupId ?? ""}
+              >
+                <option value="">Ungrouped</option>
+                {props.milestones
+                  .filter((milestone) =>
+                    milestone.status === Status.Active || milestone.id === props.groupId)
+                  .map((milestone) => (
+                    <option key={milestone.id} value={milestone.id}>{milestone.title}</option>
+                  ))}
+              </select>
+            ) : null}
             <Button aria-label={`Move ${task.title} up`} disabled={disabled || !canMoveUp} onClick={() => void onReorder(task.id, "up")} size="sm" variant="ghost">↑</Button>
             <Button aria-label={`Move ${task.title} down`} disabled={disabled || !canMoveDown} onClick={() => void onReorder(task.id, "down")} size="sm" variant="ghost">↓</Button>
             {[Status.Active, Status.Today].includes(task.status) ? (

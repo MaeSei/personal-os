@@ -1,88 +1,135 @@
-# Calendar Integration Layer
+# Google Calendar integration
 
-Atlas now has a read-only integration boundary for external calendars. The
-boundary prepares planning for calendar evidence without introducing OAuth,
-credentials, network requests, persistence, or synchronization.
+Atlas imports Google Calendar events as read-only planning evidence. External
+events remain owned by Google: they never become Items, Tasks, or Time Blocks,
+and this integration cannot create, edit, or delete Calendar events.
 
 ## Dependency graph
 
 ```text
 PlannerService
   -> CalendarProvider
-     -> CalendarService (normalization and failure isolation)
-        -> MockCalendarProvider (current composition)
+     -> CalendarService
+        -> CalendarRepository -> Prisma -> PostgreSQL
+        -> CalendarSyncProvider
+           -> GoogleCalendarProvider -> official Google API client
 
-Future composition only:
-  CalendarService -> ICSProvider implementation
-  CalendarService -> GoogleCalendarProvider implementation
+Planner UI
+  -> CalendarFeature -> /api/atlas -> CalendarService
+
+/api/calendar/google/connect + callback
+  -> CalendarOAuthFeature -> CalendarService
 ```
 
-`PlannerService` imports only the `CalendarProvider` contract. It cannot access
-Google, ICS parsing, credentials, or provider-specific response objects.
-`src/application/container.ts` is the only production location that selects the
-current provider.
+`PlannerService` still imports only `CalendarProvider`. Google OAuth, refresh
+tokens, sync cursors, API response shapes, and persistence cannot enter
+planning code. The UI sees only `CalendarFeature` connection metadata and
+commands. OAuth callback operations are exposed through a separate server-only
+feature so authorization codes are not accepted by the generic browser RPC.
 
-## Contracts
+## OAuth and security
 
-### CalendarEvent
+The integration follows Google's OAuth 2.0 web-server flow:
 
-A `CalendarEvent` is a normalized, provider-owned projection with identity,
-title, start/end instants, all-day and busy flags, and optional calendar,
-description, and location metadata. Events are read-only. They are not Items,
-Tasks, or Time Blocks and Atlas does not persist them.
+- it requests `openid`, `email`, and
+  `https://www.googleapis.com/auth/calendar.readonly` only;
+- `access_type=offline` allows background refresh;
+- `prompt=consent` ensures a reconnect can return a refresh token;
+- a random 256-bit `state` value is stored in an HttpOnly, SameSite cookie and
+  compared with a constant-time check in the callback;
+- the client ID, client secret, redirect URI, and encryption key are read only
+  on the server;
+- access tokens are short-lived and never stored by Atlas;
+- refresh tokens are encrypted with AES-256-GCM before repository persistence;
+- disconnect attempts Google revocation and always removes the local encrypted
+  credential, calendar metadata, sync tokens, and cached events.
 
-### CalendarProvider
+OAuth errors are reduced to safe Atlas messages. Tokens and Google response
+payloads are never logged or returned through feature contracts.
 
-The provider receives an exclusive start/end range and an IANA time zone. It
-returns connection state, a user-facing status message, and normalized events.
-Every provider is read-only in this sprint.
+## Persistence
 
-`ICSProvider` and `GoogleCalendarProvider` only specialize the common provider
-kind. Authentication, fetching, parsing, refresh tokens, API clients, and sync
-cursors deliberately do not appear in the Planner-facing contract.
+`CalendarRepository` stores one single-user Google connection aggregate:
 
-### CalendarService
+- provider account ID and email;
+- encrypted refresh-token envelope;
+- connection and sync timestamps;
+- sync status and a safe error message;
+- available calendars and explicit Atlas selection;
+- one Google sync token per selected calendar;
+- normalized read-only event cache.
 
-`CalendarService` decorates a concrete provider and itself implements
-`CalendarProvider`. It:
+PostgreSQL cascades connection deletion to calendar metadata and cached events.
+Foreign-key paths, selected-calendar reads, and calendar/range event reads are
+indexed. Event instants use `TIMESTAMPTZ`; all-day Google dates are converted at
+the provider boundary with their IANA time zone, including daylight-saving
+transitions.
 
-- validates the requested range;
-- removes malformed and out-of-range events;
-- de-duplicates events by provider identity;
-- sorts events deterministically;
-- clones timestamps at the boundary;
-- converts provider failures into a disconnected read-only snapshot so Atlas
-  planning remains usable.
+The cache makes Calendar context available during a temporary provider outage.
+It is a provider projection, not Atlas work truth.
 
-This keeps provider trust and normalization concerns outside `PlannerService`
-while preserving the narrow dependency requested by planning.
+## Synchronization
 
-## Current behavior
+The first connection lists the account's calendars, defaults to calendars
+selected by Google (always including the primary calendar), and performs a full
+read-only sync. Initial event sync is limited to the previous year with no
+future cutoff, matching Google's documented incremental-sync pattern.
 
-Production composes `MockCalendarProvider` with no events and a disconnected
-state. It creates no demo data. The Daily Planner asks for the current local
-day and shows the returned status or read-only events. External events do not
-yet reduce the eight-hour availability baseline or create conflict warnings;
-those are planning-engine policies, not integration-layer responsibilities.
+Later refreshes:
 
-## Future adapters
+1. refresh the Calendar List and preserve explicit Atlas selection;
+2. remove metadata and cache for calendars deleted from the provider list;
+3. send the stored per-calendar `syncToken`;
+4. apply changed and cancelled events by stable provider identity;
+5. persist the new sync token and cache atomically;
+6. when Google returns HTTP 410, clear that calendar's cursor/cache and perform
+   a new full sync, as required by Google.
 
-An ICS adapter can parse a supplied feed into `CalendarEvent` values and remain
-read-only. A Google adapter can later own OAuth and Google API translation
-behind `GoogleCalendarProvider`. Selecting either adapter changes composition,
-not Planner code.
+Google pagination is followed for both Calendar List and Events. Recurring
+series are expanded with `singleEvents=true`; deleted instances are retained in
+incremental responses long enough to remove their cached projection.
 
-Before live integration, Atlas still needs authenticated ownership, encrypted
-credential storage, permission scopes, refresh behavior, rate-limit handling,
-incremental sync, freshness metadata, and privacy rules. Calendar writes should
-use a separate explicit approval boundary rather than expanding this read port.
+Manual **Refresh now** and calendar selection use `CalendarFeature`. While the
+Planner is open, a five-minute browser timer requests a refresh and reloads the
+provider-neutral Planner projection. `CalendarService.getEvents` also refreshes
+stale data on demand, so server reads remain correct without relying on a
+long-running Railway process timer.
 
-## Explicit non-goals
+## Failure behavior
 
-- No Google OAuth or authentication UI.
-- No API keys, secrets, or environment variables.
-- No ICS parsing or remote feed loading.
-- No Google API client.
-- No polling, webhooks, background jobs, or live sync.
-- No external event writes.
-- No conversion between Calendar events and Atlas work.
+- Missing Google configuration leaves planning fully available and presents a
+  setup message instead of attempting OAuth.
+- Sync failure preserves and labels the last successful cache.
+- A revoked or invalid credential moves sync to an error state and offers
+  refresh, reconnect, or disconnect.
+- Selecting no calendars is valid and yields an empty provider projection.
+- Provider failure never changes a Day Plan or Task.
+
+## Configuration
+
+The server requires all four variables to enable the connection:
+
+```text
+GOOGLE_CALENDAR_CLIENT_ID
+GOOGLE_CALENDAR_CLIENT_SECRET
+GOOGLE_CALENDAR_REDIRECT_URI
+CALENDAR_TOKEN_ENCRYPTION_KEY
+```
+
+The redirect URI must exactly match the Google Cloud OAuth client and normally
+ends in `/api/calendar/google/callback`. The encryption key is a base64-encoded
+32-byte random value. See `docs/deployment.md` for local and Railway setup.
+
+## Verification coverage
+
+Automated tests cover OAuth scope/state safety, encrypted token persistence,
+first and repeated sync, changed and deleted events, calendar-list changes,
+multiple calendar selection, expired sync-token recovery, disconnect cleanup,
+and timezone/DST boundaries.
+
+## Official references
+
+- [OAuth 2.0 for web-server applications](https://developers.google.com/identity/protocols/oauth2/web-server)
+- [Google Calendar incremental synchronization](https://developers.google.com/workspace/calendar/api/guides/sync)
+- [Events: list](https://developers.google.com/workspace/calendar/api/v3/reference/events/list)
+- [CalendarList: list](https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/list)

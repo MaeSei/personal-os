@@ -4,6 +4,7 @@ import type {
   DayPlanStatus,
   TimeBlockType,
 } from "@/domain";
+import { createFocusSession, parseFocusChecklist } from "@/domain";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { DayPlanRepository } from "@/repositories/DayPlanRepository";
 
@@ -16,6 +17,12 @@ function fromCalendarDate(date: CalendarDate): Date {
 /** PostgreSQL adapter for ordered Task commitments and independent blocks. */
 class PrismaDayPlanRepository implements DayPlanRepository {
   constructor(private readonly getClient: PrismaProvider) {}
+
+  async delete(date: CalendarDate): Promise<void> {
+    await this.getClient().dayPlan.deleteMany({
+      where: { date: fromCalendarDate(date) },
+    });
+  }
 
   async get(date: CalendarDate): Promise<DayPlan | null> {
     const row = await this.getClient().dayPlan.findUnique({
@@ -35,6 +42,18 @@ class PrismaDayPlanRepository implements DayPlanRepository {
     return row
       ? {
           createdAt: new Date(row.createdAt),
+          commitments: row.commitments.map((commitment) => ({
+            focused: commitment.focused,
+            group: commitment.groupTitle,
+            pinned: commitment.pinned,
+            session: createFocusSession({
+              checklist: parseFocusChecklist(commitment.focusChecklist),
+              elapsedSeconds: commitment.focusElapsedSeconds,
+              notes: commitment.focusNotes,
+              startedAt: commitment.focusStartedAt,
+            }),
+            taskId: commitment.taskId,
+          })),
           date: row.date.toISOString().slice(0, 10),
           id: row.id,
           status: row.status as DayPlanStatus,
@@ -82,10 +101,21 @@ class PrismaDayPlanRepository implements DayPlanRepository {
       });
       if (plan.taskIds.length > 0) {
         await transaction.dayPlanTask.createMany({
-          data: plan.taskIds.map((taskId, position) => ({
+          data: plan.commitments.map((commitment, position) => ({
             dayPlanId: plan.id,
+            focused: commitment.focused,
+            groupTitle: commitment.group,
+            pinned: commitment.pinned,
+            focusChecklist: commitment.session.checklist.map((item) => ({
+              completed: item.completed,
+              id: item.id,
+              title: item.title,
+            })),
+            focusElapsedSeconds: commitment.session.elapsedSeconds,
+            focusNotes: commitment.session.notes,
+            focusStartedAt: commitment.session.startedAt,
             position,
-            taskId,
+            taskId: commitment.taskId,
           })),
         });
       }
