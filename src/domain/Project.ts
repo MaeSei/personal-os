@@ -2,6 +2,7 @@ import type { AreaId } from "./Area";
 import type { AttentionScore, EnergyCost } from "./Attention";
 import { ItemType, type Item, type ItemId } from "./Item";
 import { Status } from "./Status";
+import { createTask } from "./Task";
 
 type ProjectStatus =
   | Status.Active
@@ -24,9 +25,10 @@ type CreateProjectInput = {
   readonly areaId: AreaId;
   readonly attentionScore?: AttentionScore;
   readonly createdAt: Date;
+  readonly description?: string | null;
   readonly energyLevel: EnergyCost;
   readonly id: ItemId;
-  readonly initialNextAction: {
+  readonly initialNextAction?: {
     readonly id: ItemId;
     readonly title: string;
   };
@@ -63,25 +65,25 @@ function isProjectStatus(status: Status): status is ProjectStatus {
 function createProject(input: CreateProjectInput): Project {
   const areaId = input.areaId.trim();
   const id = input.id.trim();
-  const nextActionId = input.initialNextAction.id.trim();
-  const nextActionTitle = input.initialNextAction.title.trim();
+  const nextActionId = input.initialNextAction?.id.trim() ?? "";
+  const nextActionTitle = input.initialNextAction?.title.trim() ?? "";
   const outcome = input.outcome.trim();
   const title = input.title.trim();
 
   if (
     !areaId ||
     !id ||
-    !nextActionId ||
-    !nextActionTitle ||
     !title ||
-    !outcome
+    !outcome ||
+    (input.initialNextAction !== undefined &&
+      (!nextActionId || !nextActionTitle))
   ) {
     throw new Error(
-      "A Project requires an outcome, title, first next action, id, and Area.",
+      "A Project requires an outcome, title, id, and Area.",
     );
   }
 
-  if (id === nextActionId) {
+  if (nextActionId && id === nextActionId) {
     throw new Error("A Project and its next action require different ids.");
   }
 
@@ -91,35 +93,36 @@ function createProject(input: CreateProjectInput): Project {
 
   const createdAt = new Date(input.createdAt.getTime());
   const attentionScore = clampAttentionScore(input.attentionScore ?? 50);
-  const nextAction: Item = {
-    areaId,
-    attentionScore,
-    children: [],
-    createdAt: new Date(createdAt.getTime()),
-    description: null,
-    effort: input.energyLevel,
-    energyCost: input.energyLevel,
-    id: nextActionId,
-    parentId: id,
-    status: Status.Today,
-    tags: [],
-    title: nextActionTitle,
-    type: ItemType.Task,
-    updatedAt: new Date(createdAt.getTime()),
-  };
+  const nextAction = input.initialNextAction
+    ? createTask({
+        areaId,
+        attentionScore,
+        createdAt,
+        effort: input.energyLevel,
+        energyCost: input.energyLevel,
+        id: nextActionId,
+        projectId: id,
+        status: Status.Today,
+        title: nextActionTitle,
+      })
+    : null;
 
   return {
     areaId,
     attentionScore,
-    children: [nextAction],
+    children: nextAction ? [nextAction] : [],
     createdAt,
-    description: outcome,
+    description:
+      input.description === undefined
+        ? outcome
+        : input.description?.trim() || null,
     effort: input.energyLevel,
     energyCost: input.energyLevel,
     energyLevel: input.energyLevel,
     id,
     outcome,
     parentId: null,
+    projectId: null,
     status: Status.Active,
     tags: [],
     title,
@@ -151,16 +154,27 @@ function containsItem(items: readonly Item[], itemId: ItemId): boolean {
 
 /** Resolves the outcome that gives an action its reason for existing. */
 function getProjectForItem(
-  item: Pick<Item, "id" | "parentId">,
+  item: Pick<Item, "id" | "parentId" | "projectId">,
   projects: readonly Project[],
 ): Project | null {
+  if (item.projectId) {
+    return projects.find((project) => project.id === item.projectId) ?? null;
+  }
+
   return (
     projects.find(
       (project) =>
-        item.parentId === project.id || containsItem(project.children, item.id),
+        item.parentId === project.id ||
+        containsItem(project.children, item.id),
     ) ?? null
   );
 }
 
-export { createProject, getProjectForItem, isProject, isProjectStatus };
+export {
+  createProject,
+  getProjectForItem,
+  isProject,
+  isProjectStatus,
+  projectStatuses,
+};
 export type { CreateProjectInput, Project, ProjectStatus };

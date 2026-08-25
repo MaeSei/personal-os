@@ -25,16 +25,16 @@ function MissionControl({ data }: MissionControlProps) {
             <AttentionCard
               {...data.attention}
               action={
-                <ButtonLink href="/review" size="sm" variant="secondary">
-                  Complete daily review
+                <ButtonLink href="/morning" size="sm" variant="secondary">
+                  Morning planning
                 </ButtonLink>
               }
             />
           ) : (
             <EmptyState
               action={
-                <ButtonLink href="/review" size="sm" variant="secondary">
-                  Complete daily review
+                <ButtonLink href="/morning" size="sm" variant="secondary">
+                  Start morning planning
                 </ButtonLink>
               }
               description="A short check-in will help Atlas understand how much attention is available."
@@ -45,9 +45,17 @@ function MissionControl({ data }: MissionControlProps) {
 
         <TodaySection
           action={
-            <ButtonLink href="/focus" size="sm" variant="secondary">
-              Open Focus Mode
-            </ButtonLink>
+            <div className={spacingStyles.cluster}>
+              <ButtonLink href="/morning" size="sm" variant="secondary">
+                Morning planning
+              </ButtonLink>
+              <ButtonLink href="/planner" size="sm" variant="secondary">
+                Open Planner
+              </ButtonLink>
+              <ButtonLink href="/focus" size="sm" variant="secondary">
+                Open Focus Mode
+              </ButtonLink>
+            </div>
           }
           items={data.today}
         />

@@ -4,28 +4,15 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { PageStatus } from "@/components/ui/PageStatus";
-import {
-  RuleBasedAttentionEngine,
-  type AttentionEngine,
-} from "@/domain";
+import { subscribeToInboxCaptured } from "@/features/capture/captureEvents";
+import { useFeatures } from "@/features/FeatureProvider";
 import { MissionControl } from "@/features/mission-control/components/MissionControl";
 import { loadMissionControl } from "@/features/mission-control/loadMissionControl";
 import type { MissionControlData } from "@/features/mission-control/types";
-import type { AreaRepository } from "@/repositories/AreaRepository";
-import type { DailyReviewRepository } from "@/repositories/DailyReviewRepository";
-import type { ItemRepository } from "@/repositories/ItemRepository";
-import { LocalStorageRepository } from "@/repositories/LocalStorageRepository";
-import type { ProjectRepository } from "@/repositories/ProjectRepository";
-
-const repository = new LocalStorageRepository();
-const areaRepository: AreaRepository = repository;
-const itemRepository: ItemRepository = repository;
-const projectRepository: ProjectRepository = repository;
-const reviewRepository: DailyReviewRepository = repository;
-const attentionEngine: AttentionEngine = new RuleBasedAttentionEngine();
 
 /** Keeps browser-only persistence outside the reusable Mission Control UI. */
 function MissionControlClient() {
+  const { missionControl } = useFeatures();
   const [data, setData] = useState<MissionControlData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requestId, setRequestId] = useState(0);
@@ -33,18 +20,7 @@ function MissionControlClient() {
   useEffect(() => {
     let isActive = true;
 
-    loadMissionControl({
-      areaRepository,
-      attentionEngine,
-      context: {
-        locale: "en-GB",
-        timeZone: "Europe/Stockholm",
-        userName: "Maike",
-      },
-      itemRepository,
-      projectRepository,
-      reviewRepository,
-    })
+    loadMissionControl({ missionControl })
       .then((missionControlData) => {
         if (isActive) {
           setData(missionControlData);
@@ -59,7 +35,16 @@ function MissionControlClient() {
     return () => {
       isActive = false;
     };
-  }, [requestId]);
+  }, [missionControl, requestId]);
+
+  useEffect(
+    () =>
+      subscribeToInboxCaptured(() => {
+        setError(null);
+        setRequestId((current) => current + 1);
+      }),
+    [],
+  );
 
   if (error) {
     return (

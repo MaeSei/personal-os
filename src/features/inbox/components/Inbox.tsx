@@ -4,21 +4,17 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
-import { InboxCapture } from "@/features/inbox/components/InboxCapture";
-import { InboxList } from "@/features/inbox/components/InboxList";
+import { InboxProcessor } from "@/features/inbox/components/InboxProcessor";
 import { useInbox } from "@/features/inbox/hooks/useInbox";
-import type { InboxRepository } from "@/repositories/InboxRepository";
-import { LocalStorageRepository } from "@/repositories/LocalStorageRepository";
+import { useFeatures } from "@/features/FeatureProvider";
 import { spacingStyles } from "@/theme/spacing";
 
-const inboxRepository: InboxRepository = new LocalStorageRepository();
-
 function Inbox() {
-  const { announcement, capture, error, isLoading, items } =
-    useInbox(inboxRepository);
+  const { inbox: inboxFeature } = useFeatures();
+  const inbox = useInbox(inboxFeature);
 
   return (
-    <PageContainer className={spacingStyles.pageWithFloatingControl}>
+    <PageContainer>
       <div className={spacingStyles.pageStack}>
         <PageHeader
           action={
@@ -32,19 +28,32 @@ function Inbox() {
         />
 
         <Section
-          description="Uncategorized thoughts waiting for a deliberate decision."
+          description="One thought at a time. Give it a clear place, then move on."
           id="inbox-items"
           title="Inbox"
         >
-          <InboxList error={error} isLoading={isLoading} items={items} />
+          <InboxProcessor
+            addFirstTask={inbox.addFirstTask}
+            areas={inbox.areas}
+            deleteItem={inbox.deleteItem}
+            error={inbox.error}
+            finishProject={inbox.finishProject}
+            isLoading={inbox.isLoading}
+            isProcessing={inbox.isProcessing}
+            items={inbox.items}
+            processProject={inbox.processProject}
+            processReference={inbox.processReference}
+            processSomeday={inbox.processSomeday}
+            processTask={inbox.processTask}
+            projectFollowUp={inbox.projectFollowUp}
+            projects={inbox.projects}
+          />
         </Section>
       </div>
 
       <p aria-live="polite" className="sr-only" role="status">
-        {announcement}
+        {inbox.announcement}
       </p>
-
-      <InboxCapture onCapture={capture} />
     </PageContainer>
   );
 }

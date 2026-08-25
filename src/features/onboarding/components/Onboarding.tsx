@@ -2,19 +2,17 @@
 
 import { useRouter } from "next/navigation";
 
+import { useFeatures } from "@/features/FeatureProvider";
 import { AreaStep } from "@/features/onboarding/components/AreaStep";
 import { FinishStep } from "@/features/onboarding/components/FinishStep";
 import { ProjectStep } from "@/features/onboarding/components/ProjectStep";
 import { WelcomeStep } from "@/features/onboarding/components/WelcomeStep";
 import { useOnboarding } from "@/features/onboarding/hooks/useOnboarding";
-import type { OnboardingRepository } from "@/repositories/OnboardingRepository";
-import { LocalStorageRepository } from "@/repositories/LocalStorageRepository";
-
-const onboardingRepository: OnboardingRepository = new LocalStorageRepository();
 
 function Onboarding() {
   const router = useRouter();
-  const onboarding = useOnboarding(onboardingRepository);
+  const { projects } = useFeatures();
+  const onboarding = useOnboarding(projects);
 
   if (onboarding.step === "welcome") {
     return <WelcomeStep onContinue={onboarding.openAreas} />;

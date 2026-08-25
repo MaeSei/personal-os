@@ -39,6 +39,10 @@ const spacingStyles = {
     "right-[var(--inset-page-right)] bottom-[var(--inset-page-bottom)]",
   floatingButton: "size-floating-control p-0",
   floatingPanel: "max-h-[70dvh] overflow-y-auto overscroll-contain",
+  captureNoticePosition:
+    "fixed top-[var(--inset-page-top)] left-1/2 z-40 -translate-x-1/2",
+  desktopCapturePosition:
+    "fixed inset-x-0 bottom-[var(--inset-page-bottom)] z-30 hidden px-page md:flex md:justify-center",
   heroContent: "pt-card",
   item: "gap-cluster px-card py-card",
   itemList: "divide-y",
@@ -46,7 +50,9 @@ const spacingStyles = {
     "mx-auto min-h-dvh w-full max-w-atlas px-page py-page-block",
   pageHeader: "max-w-3xl space-y-card",
   pageStack: "space-y-section",
-  pageWithFloatingControl:
+  mobileCapturePosition:
+    "fixed z-30 flex flex-col items-end gap-cluster md:hidden",
+  pageWithUniversalCapture:
     "pb-[calc(var(--spacing-page-block)+var(--spacing-floating-control)+var(--spacing-cluster))]",
   rating: "flex gap-detail",
   section: "space-y-stack",

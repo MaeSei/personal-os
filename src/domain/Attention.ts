@@ -1,4 +1,6 @@
 import { isActionable } from "./Focus";
+import type { AreaId } from "./Area";
+import type { ItemId } from "./Item";
 import type { ItemType } from "./Item";
 import type { Status } from "./Status";
 
@@ -15,9 +17,11 @@ type EnergyLevel = 0 | EnergyCost;
 type AttentionScore = number;
 
 type AttentionCandidate = {
+  areaId: AreaId | null;
   attentionScore: AttentionScore;
   energyCost: EnergyCost;
   effort: Effort;
+  projectId?: ItemId | null;
   status: Status;
   type: ItemType;
 };

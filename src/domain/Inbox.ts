@@ -33,6 +33,7 @@ function createInboxItem(input: CreateInboxItemInput): Item {
     energyCost: 3,
     id,
     parentId: null,
+    projectId: null,
     status: Status.Inbox,
     tags: [],
     title,

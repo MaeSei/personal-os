@@ -4,26 +4,14 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { PageStatus } from "@/components/ui/PageStatus";
-import {
-  RuleBasedAttentionEngine,
-  type AttentionEngine,
-  type FocusModePlan,
-} from "@/domain";
+import type { FocusModePlan } from "@/domain";
 import { FocusMode } from "@/features/focus-mode/components/FocusMode";
 import { loadFocusMode } from "@/features/focus-mode/loadFocusMode";
-import type { DailyReviewRepository } from "@/repositories/DailyReviewRepository";
-import type { ItemCommandRepository } from "@/repositories/ItemCommandRepository";
-import type { ItemRepository } from "@/repositories/ItemRepository";
-import { LocalStorageRepository } from "@/repositories/LocalStorageRepository";
+import { useFeatures } from "@/features/FeatureProvider";
 
-const repository = new LocalStorageRepository();
-const itemRepository: ItemRepository = repository;
-const itemCommandRepository: ItemCommandRepository = repository;
-const reviewRepository: DailyReviewRepository = repository;
-const attentionEngine: AttentionEngine = new RuleBasedAttentionEngine();
-
-/** Supplies browser-persisted data without coupling Focus Mode to storage. */
+/** Loads server-persisted focus data through the feature boundary. */
 function FocusModeClient() {
+  const { focus } = useFeatures();
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [completionMessage, setCompletionMessage] = useState("");
   const [plan, setPlan] = useState<FocusModePlan | null>(null);
@@ -34,7 +22,7 @@ function FocusModeClient() {
   useEffect(() => {
     let isActive = true;
 
-    loadFocusMode({ attentionEngine, itemRepository, reviewRepository })
+    loadFocusMode({ focus })
       .then((focusPlan) => {
         if (isActive) {
           setPlan(focusPlan);
@@ -49,7 +37,7 @@ function FocusModeClient() {
     return () => {
       isActive = false;
     };
-  }, [requestId]);
+  }, [focus, requestId]);
 
   async function handleCompleteCurrent() {
     if (!plan?.currentFocus || isCompleting) {
@@ -62,18 +50,14 @@ function FocusModeClient() {
     setIsCompleting(true);
 
     try {
-      const completedItem = await itemCommandRepository.completeItem(item.id);
+      const completedItem = await focus.completeItem(item.id);
 
       if (!completedItem) {
         throw new Error("The focus Item no longer exists.");
       }
 
       setPlan(
-        await loadFocusMode({
-          attentionEngine,
-          itemRepository,
-          reviewRepository,
-        }),
+        await loadFocusMode({ focus }),
       );
       setCompletionMessage(`${completedItem.title} was completed. Focus updated.`);
     } catch {

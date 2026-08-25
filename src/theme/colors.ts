@@ -32,6 +32,7 @@ const colorStyles = {
   },
   card: {
     accent: "border-accent/20 bg-accent-soft text-ink",
+    danger: "border-danger/20 bg-danger-soft text-danger",
     default: "border-border bg-surface text-ink",
     subtle: "border-transparent bg-surface-subtle text-ink",
   },
@@ -51,6 +52,7 @@ const colorStyles = {
   itemList: "divide-border/70",
   text: {
     accent: "text-accent-strong",
+    danger: "text-danger",
     muted: "text-ink-muted",
     primary: "text-ink",
   },

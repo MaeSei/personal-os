@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import type { Area, AreaId, EnergyCost, Project } from "@/domain";
-import type { OnboardingRepository } from "@/repositories/OnboardingRepository";
+import type { ProjectFeature } from "@/features/contracts/ProjectFeature";
 
 type OnboardingStep = "areas" | "finish" | "project" | "welcome";
 
-function useOnboarding(repository: OnboardingRepository) {
+function useOnboarding(
+  projects: Pick<ProjectFeature, "completeOnboarding">,
+) {
   const [step, setStep] = useState<OnboardingStep>("welcome");
   const [areas, setAreas] = useState<readonly Area[]>([]);
   const [projectAreaId, setProjectAreaId] = useState<AreaId | null>(null);
@@ -59,7 +61,7 @@ function useOnboarding(repository: OnboardingRepository) {
     setIsSaving(true);
 
     try {
-      const project = await repository.completeOnboarding({
+      const project = await projects.completeOnboarding({
         areas,
         projectAreaId,
         projectEnergyLevel,

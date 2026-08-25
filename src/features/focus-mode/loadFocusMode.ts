@@ -1,30 +1,15 @@
-import {
-  buildFocusModePlan,
-  type AttentionEngine,
-  type FocusModePlan,
-} from "@/domain";
-import type { DailyReviewRepository } from "@/repositories/DailyReviewRepository";
-import type { ItemRepository } from "@/repositories/ItemRepository";
+import type { FocusModePlan } from "@/domain";
+import type { FocusFeature } from "@/features/contracts/FocusFeature";
 
 type FocusModeDependencies = {
-  readonly attentionEngine: AttentionEngine;
-  readonly itemRepository: ItemRepository;
-  readonly reviewRepository: DailyReviewRepository;
+  readonly focus: Pick<FocusFeature, "loadFocusMode">;
 };
 
-/** Loads and reduces today's plan before it reaches the presentation layer. */
-async function loadFocusMode({
-  attentionEngine,
-  itemRepository,
-  reviewRepository,
+/** Delegates focus-plan preparation to the application layer. */
+function loadFocusMode({
+  focus,
 }: FocusModeDependencies): Promise<FocusModePlan> {
-  const [items, review] = await Promise.all([
-    itemRepository.getItems(),
-    reviewRepository.getLatestReview(),
-  ]);
-  const focusPlan = await attentionEngine.createFocusPlan(review, items);
-
-  return buildFocusModePlan(focusPlan);
+  return focus.loadFocusMode();
 }
 
 export { loadFocusMode };

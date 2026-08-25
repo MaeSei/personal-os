@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { cn } from "@/lib/cn";
 import { colorStyles } from "@/theme/colors";
+import { motionStyles } from "@/theme/motion";
 import { spacingStyles } from "@/theme/spacing";
 import { typographyStyles } from "@/theme/typography";
 
@@ -35,7 +36,10 @@ function PageStatus({
         )}
         role={isError ? "alert" : "status"}
       >
-        <Badge variant={isError ? "blocked" : "attention"}>
+        <Badge
+          className={isError ? undefined : motionStyles.loading}
+          variant={isError ? "blocked" : "attention"}
+        >
           {isError ? "Needs attention" : "Loading"}
         </Badge>
         <h1

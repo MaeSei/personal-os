@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { ApplicationContainerProvider } from "@/application/ApplicationContainerProvider";
+import { UniversalCaptureShell } from "@/features/capture/components/UniversalCaptureShell";
 import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
 
 import "./globals.css";
@@ -13,7 +15,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
-        <OnboardingGate>{children}</OnboardingGate>
+        <ApplicationContainerProvider>
+          <OnboardingGate>
+            <UniversalCaptureShell>{children}</UniversalCaptureShell>
+          </OnboardingGate>
+        </ApplicationContainerProvider>
       </body>
     </html>
   );

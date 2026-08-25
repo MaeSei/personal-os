@@ -1,3 +1,5 @@
+import type { CalendarDate } from "./Item";
+
 /** A Daily Review response on the shared one-to-five scale. */
 const REVIEW_RATING_MAX = 5;
 
@@ -6,11 +8,14 @@ type ReviewRating = 1 | 2 | 3 | 4 | 5;
 type DailyReviewInput = {
   readonly energy: ReviewRating;
   readonly motivation: ReviewRating;
+  readonly notes?: string | null;
   readonly stress: ReviewRating;
 };
 
 type DailyReviewResult = DailyReviewInput & {
   readonly attentionBudget: number;
+  readonly date: CalendarDate;
+  readonly notes: string | null;
   readonly summary: string;
 };
 
@@ -55,13 +60,38 @@ function getDailyReviewSummary(attentionBudget: number): string {
   return summaries.limited;
 }
 
-/** Creates the complete deterministic result consumed by the review UI. */
-function createDailyReviewResult(input: DailyReviewInput): DailyReviewResult {
+function assertCalendarDate(value: string): asserts value is CalendarDate {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = match
+    ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+    : null;
+
+  if (
+    !match ||
+    !date ||
+    date.getUTCFullYear() !== Number(match[1]) ||
+    date.getUTCMonth() !== Number(match[2]) - 1 ||
+    date.getUTCDate() !== Number(match[3])
+  ) {
+    throw new Error("A Daily Review requires a valid YYYY-MM-DD date.");
+  }
+}
+
+/** Creates one immutable, deterministic review record for a calendar day. */
+function createDailyReviewResult(
+  input: DailyReviewInput,
+  date: string = new Date().toISOString().slice(0, 10),
+): DailyReviewResult {
+  assertCalendarDate(date);
   const attentionBudget = calculateDailyAttention(input);
 
   return {
-    ...input,
+    energy: input.energy,
+    motivation: input.motivation,
+    notes: input.notes?.trim() || null,
+    stress: input.stress,
     attentionBudget,
+    date,
     summary: getDailyReviewSummary(attentionBudget),
   };
 }

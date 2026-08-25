@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AreaColor {
+  amber
+  green
+  neutral
+
+  @@map("area_color")
+}
+
+enum ItemType {
+  Task
+  Project
+  Workflow
+  Reference
+  Idea
+  Reminder
+  Review
+
+  @@map("item_type")
+}
+
+enum ItemStatus {
+  Active
+  Inbox
+  Today
+  Waiting
+  Blocked
+  Someday
+  Completed
+  Archived
+
+  @@map("item_status")
+}
+
+enum TimeBlockType {
+  Focus
+  Meeting
+  Break
+  Travel
+  Admin
+  Personal
+  Flexible
+
+  @@map("time_block_type")
+}
+
+enum DayPlanStatus {
+  Draft   @map("DRAFT")
+  Started @map("STARTED")
+
+  @@map("day_plan_status")
+}
+
+enum PreferredTime {
+  Anytime
+  Morning
+  Afternoon
+  Evening
+
+  @@map("preferred_time")
+}
+
+model Area {
+  id          String    @id @db.Text
+  title       String    @db.Text
+  icon        String    @db.Text
+  color       AreaColor
+  description String    @db.Text
+  position    Int       @default(0)
+  items       Item[]
+
+  @@map("areas")
+}
+
+model Item {
+  id                    String             @id @db.Text
+  title                 String             @db.Text
+  description           String?            @db.Text
+  type                  ItemType
+  status                ItemStatus
+  areaId                String?            @map("area_id") @db.Text
+  area                  Area?              @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  attentionScore        Int                @map("attention_score")
+  energyCost            Int                @map("energy_cost")
+  effort                Int
+  context               String?            @db.Text
+  durationMinutes       Int?               @map("duration_minutes")
+  estimatedDuration     Int?               @map("estimated_duration")
+  preferredContext      String?            @map("preferred_context") @db.Text
+  preferredTime         PreferredTime?     @map("preferred_time")
+  dueDate               DateTime?          @map("due_date") @db.Date
+  scheduledDate         DateTime?          @map("scheduled_date") @db.Date
+  scheduledStart        DateTime?          @map("scheduled_start") @db.Timestamptz(3)
+  scheduledEnd          DateTime?          @map("scheduled_end") @db.Timestamptz(3)
+  parentId              String?            @map("parent_id") @db.Text
+  parent                Item?              @relation("item_hierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children              Item[]             @relation("item_hierarchy")
+  projectId             String?            @map("project_id") @db.Text
+  project               Item?              @relation("project_membership", fields: [projectId], references: [id], onDelete: SetNull)
+  projectTasks          Item[]             @relation("project_membership")
+  sortOrder             Int                @default(0) @map("sort_order")
+  tags                  String[]           @default([])
+  outcome               String?            @db.Text
+  energyLevel           Int?               @map("energy_level")
+  createdAt             DateTime           @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime           @map("updated_at") @db.Timestamptz(3)
+  planCommitments       DayPlanTask[]
+  timeBlockTaskLinks    TimeBlockTask[]
+  timeBlockProjectLinks TimeBlockProject[]
+
+  @@index([areaId], map: "items_area_id_idx")
+  @@index([parentId, sortOrder], map: "items_parent_order_idx")
+  @@index([projectId, sortOrder], map: "items_project_order_idx")
+  @@index([status, type], map: "items_status_type_idx")
+  @@map("items")
+}
+
+model DayPlan {
+  id          String        @id @db.Text
+  date        DateTime      @unique @db.Date
+  status      DayPlanStatus @default(Draft)
+  timeZone    String        @map("time_zone") @db.Text
+  createdAt   DateTime      @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime      @map("updated_at") @db.Timestamptz(3)
+  commitments DayPlanTask[]
+  timeBlocks  TimeBlock[]
+
+  @@map("day_plans")
+}
+
+model DayPlanTask {
+  dayPlanId String  @map("day_plan_id") @db.Text
+  taskId    String  @map("task_id") @db.Text
+  position  Int
+  dayPlan   DayPlan @relation(fields: [dayPlanId], references: [id], onDelete: Cascade)
+  task      Item    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@id([dayPlanId, taskId])
+  @@index([dayPlanId, position], map: "day_plan_tasks_order_idx")
+  @@index([taskId], map: "day_plan_tasks_task_id_idx")
+  @@map("day_plan_tasks")
+}
+
+model TimeBlock {
+  id             String             @id @db.Text
+  dayPlanId      String             @map("day_plan_id") @db.Text
+  title          String             @db.Text
+  startMinute    Int                @map("start_minute")
+  endMinute      Int                @map("end_minute")
+  type           TimeBlockType      @default(Focus)
+  locked         Boolean            @default(false)
+  notes          String?            @db.Text
+  createdAt      DateTime           @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime           @map("updated_at") @db.Timestamptz(3)
+  dayPlan        DayPlan            @relation(fields: [dayPlanId], references: [id], onDelete: Cascade)
+  linkedTasks    TimeBlockTask[]
+  linkedProjects TimeBlockProject[]
+
+  @@index([dayPlanId, startMinute], map: "time_blocks_plan_start_idx")
+  @@map("time_blocks")
+}
+
+model TimeBlockTask {
+  timeBlockId String    @map("time_block_id") @db.Text
+  taskId      String    @map("task_id") @db.Text
+  timeBlock   TimeBlock @relation(fields: [timeBlockId], references: [id], onDelete: Cascade)
+  task        Item      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@id([timeBlockId, taskId])
+  @@index([taskId], map: "time_block_tasks_task_id_idx")
+  @@map("time_block_tasks")
+}
+
+model TimeBlockProject {
+  timeBlockId String    @map("time_block_id") @db.Text
+  projectId   String    @map("project_id") @db.Text
+  timeBlock   TimeBlock @relation(fields: [timeBlockId], references: [id], onDelete: Cascade)
+  project     Item      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([timeBlockId, projectId])
+  @@index([projectId], map: "time_block_projects_project_id_idx")
+  @@map("time_block_projects")
+}
+
+model DailyReview {
+  id              BigInt   @id @default(autoincrement())
+  date            DateTime @db.Date
+  energy          Int
+  stress          Int
+  motivation      Int
+  notes           String?  @db.Text
+  summary         String   @db.Text
+  attentionBudget Int      @map("attention_budget")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([date(sort: Desc), createdAt(sort: Desc), id(sort: Desc)], map: "daily_reviews_latest_idx")
+  @@map("daily_reviews")
+}

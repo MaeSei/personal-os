@@ -1,12 +1,25 @@
 import type { DailyReviewResult } from "../domain";
 import type { DailyReviewRepository } from "./DailyReviewRepository";
 
-/** In-memory repository retained for isolated domain and loader tests. */
+/** In-memory Daily Review repository retained for isolated service tests. */
 class MockDailyReviewRepository implements DailyReviewRepository {
-  constructor(private readonly review: DailyReviewResult | null = null) {}
+  private history: DailyReviewResult[];
 
-  getLatestReview(): Promise<DailyReviewResult | null> {
-    return Promise.resolve(this.review);
+  constructor(review: DailyReviewResult | null = null) {
+    this.history = review ? [review] : [];
+  }
+
+  get(): Promise<DailyReviewResult | null> {
+    return Promise.resolve(this.history[0] ?? null);
+  }
+
+  getHistory(): Promise<readonly DailyReviewResult[]> {
+    return Promise.resolve([...this.history]);
+  }
+
+  save(review: DailyReviewResult): Promise<void> {
+    this.history = [review, ...this.history];
+    return Promise.resolve();
   }
 }
 

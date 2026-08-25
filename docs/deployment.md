@@ -1,133 +1,145 @@
 # Atlas deployment
 
-Atlas is deployed as a standalone Next.js Node.js service on Railway. The
-application is publicly reachable, while all user data remains in each
-browser's local storage. There is no database, API, authentication layer, or
-server-side persistence in this release.
+Atlas deploys as a standalone Next.js server on Railway and uses PostgreSQL for
+all product data. Database migrations run before the server starts.
 
 ## Development
 
-### Requirements
+Requirements:
 
-- Node.js 20.9 or newer
-- npm and the committed `package-lock.json`
-
-Install the locked dependency versions and start the development server:
+- Node.js 20.19 or newer;
+- PostgreSQL 14 or newer;
+- a database user allowed to create tables, indexes, enums, constraints, and
+  migration metadata.
 
 ```bash
 npm ci
+cp .env.example .env
+npm run db:migrate:dev
 npm run dev
 ```
 
-Open `http://localhost:3000`. No environment variables are currently required.
-`.env.example` records that contract and is the template for future settings.
-If variables are introduced later, copy it to `.env.local` and add only local
-values there:
+Set `DATABASE_URL` in `.env` to the local database. `prisma migrate dev`
+applies committed migrations and creates a development migration when the
+schema changes. Do not use it against production.
 
-```bash
-cp .env.example .env.local
-```
-
-Do not commit `.env.local` or any other populated environment file.
-
-## Production
-
-Build and run the same artifact locally before deployment:
-
-```bash
-npm ci
-npm run build
-npm start
-```
-
-`next.config.ts` enables `output: "standalone"`. Next.js then traces the
-runtime dependencies and creates a minimal server in `.next/standalone`.
-`postbuild` runs `scripts/prepare-standalone.mjs`, which copies `public` and
-`.next/static` into that folder because Next.js deliberately leaves those
-assets out of standalone output. `npm start` launches the generated server
-rather than a second build or a custom server. The start command explicitly
-binds `HOSTNAME=0.0.0.0`: Railway supplies a container hostname that would
-otherwise override Next.js's public-interface fallback and make the service
-unreachable to its health checker.
-
-The build script explicitly uses Next.js's supported Webpack builder. Next.js
-16 defaults to Turbopack, whose CSS build workers require local socket binding;
-Webpack keeps production builds compatible with restricted CI and container
-builders. The tradeoff is a potentially slower build, with no difference to the
-generated standalone runtime. This choice can be revisited when the target
-build environment supports Turbopack's worker model consistently.
-
-For a local production smoke test, open `http://localhost:3000` after
-`npm start`. A platform may select another port by setting `PORT`; the generated
-server reads it automatically.
+No seed command exists. A fresh database is intentionally empty and Atlas
+opens onboarding because it finds no Areas.
 
 ## Environment variables
 
-Atlas has no required application variables in this release.
-
-| Variable | Owner | Required | Purpose |
+| Variable | Required | Scope | Purpose |
 | --- | --- | --- | --- |
-| `PORT` | Railway | Yes in Railway | Injected automatically and read by the standalone server. Do not set it in `.env.example`. |
-| `HOSTNAME` | Start script | No manual setup | Fixed to `0.0.0.0` so Railway can reach the standalone server. |
-| `NODE_ENV` | Build/runtime | No manual setup | Next.js and Railway use production mode for the deployed build. |
+| `DATABASE_URL` | Yes | Runtime and Prisma CLI | PostgreSQL connection used by the application and normal Railway migrations. |
+| `DIRECT_URL` | No | Prisma CLI | Direct connection for migrations when `DATABASE_URL` uses a transaction pooler. Railway's standard PostgreSQL URL is already direct. |
+| `PORT` | Railway-managed | Runtime | Port read by the standalone Next.js server. |
+| `HOSTNAME` | Script-managed | Runtime | Fixed to `0.0.0.0` so Railway health checks can reach the process. |
 
-Future secrets must use server-only names and be configured in Railway's
-Variables panel. Never prefix secrets with `NEXT_PUBLIC_`: Next.js inlines
-those values into the browser bundle at build time. Add every new variable to
-`.env.example` with a non-secret placeholder and document whether it is needed
-at build time, runtime, or both.
+Database URLs and future secrets must never use a `NEXT_PUBLIC_` prefix. Only
+safe public values may enter the browser bundle.
 
-No `DATABASE_URL` is defined because this sprint intentionally has no database.
+Prisma CLI configuration prefers `DIRECT_URL` when present. The running
+application always uses `DATABASE_URL` through the PostgreSQL driver adapter.
 
-## Railway configuration
+## Production build
 
-`railway.json` keeps build and runtime settings versioned with the application:
+```bash
+npm ci
+npm run db:validate
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-- Railpack detects the Node.js project and installs locked npm dependencies.
-- `npm run build` creates and packages the standalone artifact.
-- `npm start` binds to `0.0.0.0`, runs `.next/standalone/server.js`, and honors Railway's `PORT`.
-- The `/` health check prevents an unresponsive deployment from becoming the
-  active version.
-- A 120-second health-check window allows a cold Node.js service to start
-  without hiding genuine startup failures for too long.
+`npm run build` generates Prisma Client and creates Next.js standalone output.
+The post-build script copies static assets required by the standalone server.
+Prisma CLI remains a production dependency because the release start command
+runs committed migrations after Railway has pruned development packages.
 
-The repository also declares Next.js's minimum supported Node.js version in
-`package.json`, so local and hosted builds have the same runtime floor.
+Do not run `prisma migrate dev` in production. Deploy committed migration files
+with `npm run db:migrate:deploy`.
 
-## Deployment workflow
+## Railway workflow
 
-1. Run `npm ci`, `npm run lint`, and `npm run build` locally.
-2. Push the verified commit to the GitHub branch connected to Railway.
-3. In Railway, create a project with **Deploy from GitHub repo** and select this
-   repository. Railpack reads `railway.json`; no Dockerfile is required.
-4. Confirm the build log completes and the health check for `/` passes.
-5. In the service's **Settings → Networking** area, generate a Railway domain.
-6. Open the generated URL and smoke-test Mission Control, Daily Review, Inbox,
-   and Focus Mode at mobile and desktop widths.
-7. Later pushes to the connected branch create new deployments using the same
-   versioned configuration.
+1. Create or open the Railway project for Atlas.
+2. Add a PostgreSQL service in the same project.
+3. In the Atlas service Variables panel, add `DATABASE_URL` as a reference to
+   the PostgreSQL service's `DATABASE_URL` variable.
+4. Leave `DIRECT_URL` unset for a standard Railway PostgreSQL connection. If a
+   pooler is introduced later, point `DIRECT_URL` at the direct database URL.
+5. Connect the GitHub repository and deploy the intended branch.
+6. Railpack installs the lockfile and runs `npm run build` from `railway.json`.
+7. Railway starts `npm run start:migrate`. This runs `prisma migrate deploy`
+   first; the Next.js server starts only after migrations succeed.
+8. The `/` health check must pass before Railway promotes the deployment.
+9. Generate a Railway domain and smoke-test onboarding, capture, Inbox triage,
+   Daily Review, Mission Control, Focus Mode, and Project workspaces.
 
-The Railway CLI is an optional alternative after `railway login` and
-`railway init`; `railway up` uploads the current workspace. Git-based deployment
-is preferred for production because the deployed revision is explicit and
-repeatable.
+The migration-before-start choice prevents new code from serving against an
+older schema. Its tradeoff is that a broken migration blocks deployment rather
+than leaving the old release online with partially compatible code.
 
-## Local persistence boundary
+## Migration workflow
 
-The deployed application is available from any device, but data does not sync
-between devices. `LocalStorageRepository` stores items and Daily Review results
-under the current browser profile and domain. Clearing site data, changing
-browsers, or opening Atlas on another device creates a separate local data set.
-Railway restarts and redeployments do not erase that browser data because it is
-never stored in the Railway container.
+For every schema change:
 
-This is intentional for the no-backend release. A future persistent repository
-can implement the existing repository interfaces without changing the UI, but
-that migration is outside this deployment sprint.
+1. Change `prisma/schema.prisma` locally.
+2. Run `npm run db:migrate:dev -- --name concise_change_name` against a disposable
+   development database.
+3. Inspect the generated SQL, including indexes, constraints, and destructive
+   statements.
+4. Add a documented recovery/forward-fix procedure for nontrivial migrations.
+5. Run the complete validation suite.
+6. Back up production, then deploy. `prisma migrate deploy` applies only pending
+   committed migrations.
+7. Verify `npm run db:migrate:status` against the target environment.
+
+The initial migration is in
+`prisma/migrations/20260824000000_initial_postgresql/migration.sql`.
+
+## Rollback and recovery
+
+Prisma Migrate does not use routine automatic down migrations in production.
+The safe response depends on migration state:
+
+- If application code is faulty but the schema is backward-compatible, roll
+  back the Railway application deployment and leave the successful migration
+  applied.
+- If a migration failed, correct the database state, then use `prisma migrate
+  resolve --rolled-back <migration-name>` or `--applied` as appropriate before
+  redeploying.
+- If a successful schema change must be reversed, create and deploy a new
+  forward corrective migration. Restore from the verified backup when data was
+  destructively transformed.
+
+The initial migration includes `down.sql` solely to verify reversal on an
+empty disposable database. It drops every Atlas table and all data. Never run
+it as routine production rollback.
+
+Recommended disposable verification:
+
+1. Create an empty temporary PostgreSQL database.
+2. Point `DATABASE_URL` at it and run `npm run db:migrate:deploy`.
+3. Verify `npm run db:migrate:status` reports no pending migration.
+4. Execute the initial `down.sql` only against that temporary database.
+5. Verify the Atlas tables and enum types are absent.
+6. Re-run `npm run db:migrate:deploy` to prove clean re-application.
+
+## Persistence and security
+
+Data now follows the PostgreSQL service across application restarts and devices.
+Atlas currently has no authentication or user ownership model, so the deployed
+URL must be treated as private. Do not expose a public multi-user instance until
+authorization and per-user data isolation are implemented.
+
+Former browser LocalStorage data is not imported automatically. A future import
+must be explicit and authenticated; blindly accepting browser data into the
+single server dataset would be unsafe.
 
 ## References
 
-- [Railway's Next.js deployment guide](https://docs.railway.com/guides/nextjs)
-- [Railway configuration as code](https://docs.railway.com/config-as-code/reference)
-- [Next.js standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output)
-- [Next.js environment variables](https://nextjs.org/docs/app/guides/environment-variables)
+- [Prisma production migrations](https://www.prisma.io/docs/orm/prisma-client/deployment/deploy-database-changes-with-prisma-migrate)
+- [Prisma rollback and down-migration workflow](https://docs.prisma.io/docs/orm/prisma-migrate/workflows/generating-down-migrations)
+- [Prisma Next.js guide](https://www.prisma.io/docs/guides/frameworks/nextjs)
+- [Railway Next.js deployment guide](https://docs.railway.com/guides/nextjs)

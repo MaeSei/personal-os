@@ -1,56 +1,23 @@
-import {
-  isBlocked,
-  isProject,
-  ItemType,
-  NextActionCalculator,
-  Status,
-  type ActionableItem,
-  type Item,
-  type Project,
-} from "../domain";
+import { migrateLegacyTasks, type Item } from "../domain";
 import type { ItemRepository } from "./ItemRepository";
-import type { ProjectRepository } from "./ProjectRepository";
 
-const nextActionCalculator = new NextActionCalculator();
+/** In-memory Item repository retained for isolated service tests. */
+class MockItemRepository implements ItemRepository {
+  constructor(private items: readonly Item[] = []) {}
 
-/** In-memory repository retained for isolated domain and loader tests. */
-class MockItemRepository implements ItemRepository, ProjectRepository {
-  constructor(private readonly items: readonly Item[] = []) {}
+  get(): Promise<readonly Item[]> {
+    const migration = migrateLegacyTasks(this.items);
 
-  getItems(): Promise<readonly Item[]> {
+    if (migration.changed) {
+      this.items = migration.items;
+    }
+
     return Promise.resolve(this.items);
   }
 
-  getInbox(): Promise<readonly Item[]> {
-    return Promise.resolve(
-      this.items.filter(
-        (item) => item.type !== ItemType.Project && item.status === Status.Inbox,
-      ),
-    );
-  }
-
-  getInboxCount(): Promise<number> {
-    return Promise.resolve(
-      this.items.filter(
-        (item) => item.type !== ItemType.Project && item.status === Status.Inbox,
-      ).length,
-    );
-  }
-
-  getToday(): Promise<readonly ActionableItem[]> {
-    return Promise.resolve(nextActionCalculator.getTodayActions(this.items));
-  }
-
-  getProjects(): Promise<readonly Project[]> {
-    return Promise.resolve(this.items.filter(isProject));
-  }
-
-  getBlocked(): Promise<readonly Item[]> {
-    return Promise.resolve(
-      this.items.filter(
-        (item) => item.type !== ItemType.Project && isBlocked(item),
-      ),
-    );
+  save(items: readonly Item[]): Promise<void> {
+    this.items = items;
+    return Promise.resolve();
   }
 }
 

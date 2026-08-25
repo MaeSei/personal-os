@@ -1,7 +1,8 @@
 import type { DailyReviewResult } from "./DailyReview";
 import { isBlocked, type ActionableItem } from "./Focus";
-import { ItemType, type Item } from "./Item";
+import type { Item } from "./Item";
 import { NextActionCalculator } from "./NextActionCalculator";
+import { isTask, type Task } from "./Task";
 
 const MAX_FOCUS_ITEMS = 3;
 const ATTENTION_PER_FOCUS_SLOT = 35;
@@ -16,7 +17,7 @@ type FocusPlan = {
   /** Today Items that remain valid but are intentionally not selected. */
   readonly deferredItems: readonly ActionableItem[];
   /** Blocked Items shown separately and never considered for focus. */
-  readonly blockedItems: readonly Item[];
+  readonly blockedItems: readonly Task[];
 };
 
 function clampPercentage(value: number): number {
@@ -55,6 +56,9 @@ function getSupportedEnergy(attentionBudget: number): number {
 
 function sharesProjectContext(left: Item, right: Item): boolean {
   return (
+    (left.projectId !== null &&
+      left.projectId !== undefined &&
+      left.projectId === right.projectId) ||
     left.parentId === right.id ||
     right.parentId === left.id ||
     (left.parentId !== null && left.parentId === right.parentId)
@@ -122,7 +126,7 @@ function buildFocusPlan(
   nextActionCalculator = new NextActionCalculator(),
 ): FocusPlan {
   const blockedItems = items.filter(
-    (item) => item.type !== ItemType.Project && isBlocked(item),
+    (item): item is Task => isTask(item) && isBlocked(item),
   );
   let remaining: ActionableItem[] = [
     ...nextActionCalculator.getTodayActions(items),

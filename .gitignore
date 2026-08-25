@@ -12,10 +12,14 @@
 
 # testing
 /coverage
+/.test-dist
 
 # next.js
 /.next/
 /out/
+
+# generated database client
+/src/generated/prisma/
 
 # production
 /build

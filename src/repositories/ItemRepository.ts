@@ -1,12 +1,9 @@
-import type { ActionableItem, Item } from "../domain";
+import type { Item } from "../domain";
 
-/** Read operations available to consumers of the Atlas Item collection. */
+/** Persistence boundary for the complete Atlas Item collection. */
 interface ItemRepository {
-  getItems(): Promise<readonly Item[]>;
-  getInbox(): Promise<readonly Item[]>;
-  getInboxCount(): Promise<number>;
-  getToday(): Promise<readonly ActionableItem[]>;
-  getBlocked(): Promise<readonly Item[]>;
+  get(): Promise<readonly Item[]>;
+  save(items: readonly Item[]): Promise<void>;
 }
 
 export type { ItemRepository };

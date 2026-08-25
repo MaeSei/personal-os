@@ -6,7 +6,7 @@ import { colorStyles } from "@/theme/colors";
 import { spacingStyles } from "@/theme/spacing";
 import { typographyStyles } from "@/theme/typography";
 
-type PageHeaderProps = ComponentPropsWithoutRef<"header"> & {
+type PageHeaderProps = Omit<ComponentPropsWithoutRef<"header">, "title"> & {
   action?: ReactNode;
   description: ReactNode;
   eyebrow: ReactNode;

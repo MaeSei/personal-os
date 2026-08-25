@@ -1,6 +1,6 @@
 import type { ActionableItem } from "./Focus";
 import type { FocusPlan } from "./FocusPlan";
-import { ItemType, type Item } from "./Item";
+import type { Task } from "./Task";
 
 type FocusModePlan = {
   /** The single Item that deserves attention now. */
@@ -8,12 +8,8 @@ type FocusModePlan = {
   /** The next concrete Item, kept visible without exposing the wider plan. */
   readonly nextAction: ActionableItem | null;
   /** Blockers that may prevent progress and therefore still need awareness. */
-  readonly blockedItems: readonly Item[];
+  readonly blockedItems: readonly Task[];
 };
-
-function isVisibleInFocusMode(item: Item): boolean {
-  return item.type !== ItemType.Project;
-}
 
 /**
  * FocusPlan already guarantees concrete work. This projection keeps only two
@@ -21,7 +17,7 @@ function isVisibleInFocusMode(item: Item): boolean {
  */
 function buildFocusModePlan(focusPlan: FocusPlan): FocusModePlan {
   return {
-    blockedItems: focusPlan.blockedItems.filter(isVisibleInFocusMode),
+    blockedItems: focusPlan.blockedItems,
     currentFocus: focusPlan.focusItems[0] ?? null,
     nextAction: focusPlan.focusItems[1] ?? null,
   };

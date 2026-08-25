@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 
-import { createDailyReviewResult } from "@/domain";
+import type { ReviewFeature } from "@/features/contracts/ReviewFeature";
 import type {
   DailyReviewDraft,
   DailyReviewResult,
   ReviewMetric,
   ReviewRating,
 } from "@/features/review/types";
-import type { AtlasRepository } from "@/repositories/AtlasRepository";
 
 const initialDraft: DailyReviewDraft = {
   energy: null,
@@ -20,7 +19,7 @@ const initialDraft: DailyReviewDraft = {
 
 /** Owns the temporary, browser-only state for one Daily Review. */
 function useDailyReview(
-  repository: Pick<AtlasRepository, "saveReview">,
+  review: Pick<ReviewFeature, "completeReview">,
 ) {
   const [draft, setDraft] = useState<DailyReviewDraft>(initialDraft);
   const [error, setError] = useState<string | null>(null);
@@ -55,23 +54,22 @@ function useDailyReview(
     setError(null);
     setIsSaving(true);
 
-    const nextResult = createDailyReviewResult({
-      energy: draft.energy,
-      motivation: draft.motivation,
-      stress: draft.stress,
-    });
-
     try {
-      await repository.saveReview(nextResult);
+      const nextResult = await review.completeReview({
+        energy: draft.energy,
+        motivation: draft.motivation,
+        notes: draft.notes,
+        stress: draft.stress,
+      });
+
+      setResult(nextResult);
+      return nextResult;
     } catch {
       setError("Atlas could not save this review. Please try again.");
       return null;
     } finally {
       setIsSaving(false);
     }
-
-    setResult(nextResult);
-    return nextResult;
   }
 
   function reset() {

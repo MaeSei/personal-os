@@ -97,6 +97,7 @@
   --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Device-safe floating controls */
+  --inset-page-top: max(var(--spacing-page), env(safe-area-inset-top));
   --inset-page-right: max(var(--spacing-page), env(safe-area-inset-right));
   --inset-page-bottom: max(var(--spacing-page), env(safe-area-inset-bottom));
 }

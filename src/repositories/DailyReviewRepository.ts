@@ -1,8 +1,10 @@
 import type { DailyReviewResult } from "../domain";
 
-/** Read boundary for the Daily Review that should guide today's planning. */
+/** Append-only persistence boundary for historical Daily Reviews. */
 interface DailyReviewRepository {
-  getLatestReview(): Promise<DailyReviewResult | null>;
+  get(): Promise<DailyReviewResult | null>;
+  getHistory(): Promise<readonly DailyReviewResult[]>;
+  save(review: DailyReviewResult): Promise<void>;
 }
 
 export type { DailyReviewRepository };

@@ -5,10 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
 import { PageStatus } from "@/components/ui/PageStatus";
-import type { AreaRepository } from "@/repositories/AreaRepository";
-import { LocalStorageRepository } from "@/repositories/LocalStorageRepository";
-
-const areaRepository: AreaRepository = new LocalStorageRepository();
+import { useFeatures } from "@/features/FeatureProvider";
 const onboardingPath = "/onboarding";
 
 type OnboardingGateProps = {
@@ -19,6 +16,7 @@ type OnboardingGateProps = {
 function OnboardingGate({ children }: OnboardingGateProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { areas } = useFeatures();
   const [error, setError] = useState<string | null>(null);
   const [requestId, setRequestId] = useState(0);
   const [verifiedPath, setVerifiedPath] = useState<string | null>(null);
@@ -26,7 +24,7 @@ function OnboardingGate({ children }: OnboardingGateProps) {
   useEffect(() => {
     let isActive = true;
 
-    areaRepository
+    areas
       .getAreas()
       .then((areas) => {
         if (!isActive) {
@@ -56,7 +54,7 @@ function OnboardingGate({ children }: OnboardingGateProps) {
     return () => {
       isActive = false;
     };
-  }, [pathname, requestId, router]);
+  }, [areas, pathname, requestId, router]);
 
   if (error) {
     return (

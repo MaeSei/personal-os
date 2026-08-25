@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "incremental": false,
+    "isolatedModules": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".test-dist",
+    "rootDir": ".",
+    "target": "ES2022"
+  },
+  "include": [
+    "src/application/InboxService.ts",
+    "src/application/BreakdownService.ts",
+    "src/application/CalendarService.ts",
+    "src/application/ProjectService.ts",
+    "src/application/PlannerService.ts",
+    "src/calendar/**/*.ts",
+    "src/domain/**/*.ts",
+    "src/repositories/AreaRepository.ts",
+    "src/repositories/ItemRepository.ts",
+    "src/repositories/DayPlanRepository.ts",
+    "src/repositories/MockDayPlanRepository.ts",
+    "src/repositories/MockItemRepository.ts",
+    "tests/**/*.ts"
+  ]
+}
