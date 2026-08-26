@@ -39,7 +39,7 @@ function Workspace(props: WorkspaceProps) {
     <PageContainer>
       <div className={spacingStyles.pageStack}>
         <PageHeader
-          action={<ButtonLink href="/wrap-up" variant="secondary">Wrap up day</ButtonLink>}
+          action={<div className={spacingStyles.cluster}><ButtonLink href="/briefing">Morning briefing</ButtonLink><ButtonLink href="/wrap-up" variant="secondary">Wrap up day</ButtonLink></div>}
           description="Your active outcomes, today’s work, and unprocessed thoughts—close enough to orient, quiet enough to think."
           eyebrow="Workspace"
           title="Sit down to what matters."

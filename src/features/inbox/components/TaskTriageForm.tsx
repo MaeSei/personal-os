@@ -3,6 +3,7 @@
 import { Status, type Area, type InboxTaskInput, type Project } from "@/domain";
 import { TaskEditor } from "@/features/tasks/components/TaskEditor";
 import type { TaskEditorValue } from "@/features/tasks/components/types";
+import type { InboxClassificationPreview } from "@/features/contracts/AssistantFeature";
 
 type TaskTriageFormProps = {
   readonly areas: readonly Area[];
@@ -11,6 +12,7 @@ type TaskTriageFormProps = {
   readonly onBack: () => void;
   readonly onSubmit: (input: InboxTaskInput) => Promise<boolean>;
   readonly projects: readonly Project[];
+  readonly suggestion?: InboxClassificationPreview | null;
 };
 
 function TaskTriageForm({
@@ -20,20 +22,21 @@ function TaskTriageForm({
   onBack,
   onSubmit,
   projects,
+  suggestion,
 }: TaskTriageFormProps) {
   const initialValue: TaskEditorValue = {
-    areaId: "",
-    context: null,
-    contexts: [],
+    areaId: suggestion?.areaId ?? "",
+    context: suggestion?.contexts[0] ?? null,
+    contexts: suggestion?.contexts ?? [],
     description: null,
     dueDate: null,
-    durationMinutes: null,
+    durationMinutes: suggestion?.estimatedDurationMinutes ?? null,
     effort: 3,
     estimateConfidence: null,
-    estimatedDuration: null,
-    energyCost: 3,
-    projectId: null,
-    preferredContext: null,
+    estimatedDuration: suggestion?.estimatedDurationMinutes ?? null,
+    energyCost: (suggestion?.energy ?? 3) as 1 | 2 | 3 | 4 | 5,
+    projectId: suggestion?.projectId ?? null,
+    preferredContext: suggestion?.contexts[0] ?? null,
     preferredTime: null,
     scheduledDate: null,
     scheduledEnd: null,

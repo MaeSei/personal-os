@@ -1,4 +1,5 @@
 import type { AreaFeature } from "@/features/contracts/AreaFeature";
+import type { AssistantFeature } from "@/features/contracts/AssistantFeature";
 import type { BreakdownFeature } from "@/features/contracts/BreakdownFeature";
 import type { CalendarFeature } from "@/features/contracts/CalendarFeature";
 import type { FocusFeature } from "@/features/contracts/FocusFeature";
@@ -14,6 +15,7 @@ import type { WrapUpFeature } from "@/features/contracts/WrapUpFeature";
 /** The complete UI-facing capability set supplied by the composition root. */
 type AtlasFeatures = {
   readonly areas: AreaFeature;
+  readonly assistant: AssistantFeature;
   readonly breakdown: BreakdownFeature;
   readonly calendar: CalendarFeature;
   readonly focus: FocusFeature;

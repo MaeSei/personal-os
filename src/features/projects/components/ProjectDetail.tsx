@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
+
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { Area, Project, ProjectDetail as Detail } from "@/domain";
 import type { ProjectMilestoneInput, TaskWriteInput } from "@/features/contracts/ProjectFeature";
-import { ProjectAssistantPlaceholder } from "@/features/projects/components/ProjectAssistantPlaceholder";
 import { ProjectHero } from "@/features/projects/components/ProjectHero";
 import { ProjectMilestones } from "@/features/projects/components/ProjectMilestones";
 import { ProjectNotes } from "@/features/projects/components/ProjectNotes";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/cn";
 import { spacingStyles } from "@/theme/spacing";
 
 type ProjectDetailProps = {
+  readonly assistant: ReactNode;
   readonly announcement: string;
   readonly areas: readonly Area[];
   readonly detail: Detail;
@@ -134,7 +136,7 @@ function ProjectDetail(props: ProjectDetailProps) {
             relatedProjects={detail.relatedProjects}
           />
         </div>
-        <ProjectAssistantPlaceholder />
+        {props.assistant}
       </div>
       <p aria-live="polite" className="sr-only" role="status">{props.announcement}</p>
     </PageContainer>

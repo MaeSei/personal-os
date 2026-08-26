@@ -10,6 +10,8 @@ import type {
   ProcessTaskInput,
 } from "@/features/contracts/InboxFeature";
 import { DeleteConfirmation } from "@/features/inbox/components/DeleteConfirmation";
+import { InboxAISuggestion } from "@/features/inbox/components/InboxAISuggestion";
+import type { InboxClassificationPreview } from "@/features/contracts/AssistantFeature";
 import { ProjectTriageForm } from "@/features/inbox/components/ProjectTriageForm";
 import { TaskTriageForm } from "@/features/inbox/components/TaskTriageForm";
 import {
@@ -49,6 +51,7 @@ function InboxProcessingItem({
   remaining,
 }: InboxProcessingItemProps) {
   const [mode, setMode] = useState<"choose" | TriageMode>("choose");
+  const [suggestion, setSuggestion] = useState<InboxClassificationPreview | null>(null);
 
   return (
     <Card as="article" padding="lg">
@@ -74,18 +77,26 @@ function InboxProcessingItem({
         ) : null}
 
         {mode === "choose" ? (
-          <TriageChoices
-            disabled={isProcessing}
-            onModeChange={setMode}
-            onReference={() => void processReference(item.id)}
-            onSomeday={() => void processSomeday(item.id)}
-          />
+          <>
+            <InboxAISuggestion
+              disabled={isProcessing}
+              itemId={item.id}
+              onApply={(value) => { setSuggestion(value); setMode("task"); }}
+            />
+            <TriageChoices
+              disabled={isProcessing}
+              onModeChange={setMode}
+              onReference={() => void processReference(item.id)}
+              onSomeday={() => void processSomeday(item.id)}
+            />
+          </>
         ) : null}
         {mode === "task" ? (
           <TaskTriageForm
             areas={areas}
             disabled={isProcessing}
             initialTitle={item.title}
+            suggestion={suggestion}
             onBack={() => setMode("choose")}
             onSubmit={(input: InboxTaskInput) =>
               processTask({ ...input, itemId: item.id })

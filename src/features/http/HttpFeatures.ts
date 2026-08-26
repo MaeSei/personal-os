@@ -2,6 +2,7 @@ import type { AtlasFeatures } from "@/features/contracts/AtlasFeatures";
 
 const DATE_KEYS = new Set([
   "createdAt",
+  "generatedAt",
   "connectedAt",
   "at",
   "end",
@@ -67,6 +68,18 @@ const httpFeatures: AtlasFeatures = {
   areas: {
     getAreas: () => callFeature("areas", "getAreas"),
     saveAreas: (areas) => callFeature("areas", "saveAreas", [areas]),
+  },
+  assistant: {
+    acceptProjectBreakdown: (input) =>
+      callFeature("assistant", "acceptProjectBreakdown", [input]),
+    getExecutiveBriefing: () =>
+      callFeature("assistant", "getExecutiveBriefing"),
+    getReflection: () => callFeature("assistant", "getReflection"),
+    getStatus: () => callFeature("assistant", "getStatus"),
+    proposeProjectBreakdown: (projectId) =>
+      callFeature("assistant", "proposeProjectBreakdown", [projectId]),
+    suggestInboxItem: (itemId) =>
+      callFeature("assistant", "suggestInboxItem", [itemId]),
   },
   breakdown: {
     breakDown: (request) =>

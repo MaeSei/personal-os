@@ -32,7 +32,8 @@ AnalyticsService -> Review / Wrap-Up / Item repositories -> pure Analytics
 PatternService -> Analytics + historical Review / Wrap-Up -> pure Patterns
 RecommendationService -> Analytics + Patterns + CalendarProvider + current work
 
-Optional future AIService interfaces -> no implementation or provider
+AssistantFeature -> AssistantService -> provider-neutral AIService
+  -> optional server-only OpenAI structured-output adapter
 ```
 
 The root route now renders Workspace. Its read-only path is:
@@ -150,10 +151,13 @@ sample-gated deterministic rules, and `RecommendationService` combines those
 results with provider-neutral Calendar and current work. Domain outputs contain
 evidence and explanations but no executable command.
 
-`src/ai` is a separate interface-only dependency-injection boundary. It has no
-runtime composition, implementation, provider, prompt, or relationship to the
-deterministic services. This prevents “AI-ready” structure from silently
-introducing AI behavior.
+`src/ai` is a separate provider-neutral dependency-injection boundary. Its
+optional server adapter produces structured proposals through OpenAI Responses;
+`AssistantService` assembles scoped repository and deterministic evidence,
+validates model output, and exposes previews through `AssistantFeature`.
+Provider services have no repository or command access. Inbox filing and
+selected Project acceptance re-enter application commands explicitly; briefing
+and reflection remain read-only. See `docs/ai-service-layer.md`.
 
 The Calendar Workspace composes that one projection into a calm Day Timeline:
 read-only events, genuine Available Slots, and editable Atlas Time Blocks share
@@ -240,6 +244,8 @@ protect the stored representation from invalid values and broken references.
   outside the Planner read port.
 - Calendar writes remain unsupported; imported events are read-only.
 - Tests may use in-memory repository implementations.
+- AI providers are created only in the server composition root and never enter
+  Client Components, repositories, or Prisma.
 
 See `docs/current-architecture.md` for the complete runtime inventory and
 `docs/database.md` for schema and migration operations.

@@ -42,7 +42,7 @@ function DailyWrapUp() {
     <PageContainer>
       <div className={spacingStyles.pageStack}>
         <PageHeader
-          action={<ButtonLink href="/" variant="secondary">Workspace</ButtonLink>}
+          action={<div className={spacingStyles.cluster}><ButtonLink href="/reflection">Reflection Coach</ButtonLink><ButtonLink href="/" variant="secondary">Workspace</ButtonLink></div>}
           description="Compare intention with what happened, decide unfinished work, and leave the day without a productivity score."
           eyebrow={data.dateLabel}
           title={`Close the day, ${data.name}.`}

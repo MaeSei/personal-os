@@ -168,14 +168,17 @@ adapter boundary using the source calendar's IANA time zone.
 | `AnalyticsService` | Produces a deterministic historical report from Review, Wrap-Up, and current Item evidence. It is service-only and not exposed to UI yet. |
 | `PatternService` | Applies sample-gated rules to historical Atlas evidence and omits unsupported inferences. |
 | `RecommendationService` | Combines Analytics, Patterns, read-only Calendar, current Review, Projects, and Tasks into explained suggestions with no execution path. |
+| `AssistantService` | Assembles scoped evidence, invokes optional AI capability ports, validates proposals, exposes read-only briefings/reflections, and atomically persists only explicitly selected Project suggestions. |
 
 Application services are the only consumers of repository contracts. The API
 route dispatches to feature contracts; it does not query Prisma or repositories
 directly.
 
-The optional contracts in `src/ai` are not application services and are not
-instantiated. They reserve provider-neutral dependency-injection boundaries for
-conversation, classification, planning, reflection, and Project breakdown.
+The contracts in `src/ai` remain provider-neutral. The production composition
+root optionally instantiates a server-only OpenAI structured-output adapter for
+Project breakdown, Inbox classification, briefing, and reflection. Conversation
+and AI planning remain unimplemented. UI sees only `AssistantFeature`; provider
+credentials and implementations never cross the server boundary.
 
 `PlanningRulesEngine` is a pure domain collaborator injected into
 `PlannerService`. It excludes unavailable or dependency-bound Tasks, selects

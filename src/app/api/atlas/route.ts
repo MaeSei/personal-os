@@ -11,6 +11,7 @@ import type {
   ProcessTaskInput,
 } from "@/features/contracts/InboxFeature";
 import type { BreakdownRequest } from "@/features/contracts/BreakdownFeature";
+import type { AcceptProjectBreakdownInput } from "@/features/contracts/AssistantFeature";
 import type {
   TimeBlockUpdateInput,
   TimeBlockWriteInput,
@@ -49,6 +50,20 @@ async function dispatch(request: FeatureRequest): Promise<unknown> {
       return features.areas.getAreas();
     case "areas.saveAreas":
       return features.areas.saveAreas(arg(args, 0));
+    case "assistant.acceptProjectBreakdown":
+      return features.assistant.acceptProjectBreakdown(
+        arg<AcceptProjectBreakdownInput>(args, 0),
+      );
+    case "assistant.getExecutiveBriefing":
+      return features.assistant.getExecutiveBriefing();
+    case "assistant.getReflection":
+      return features.assistant.getReflection();
+    case "assistant.getStatus":
+      return features.assistant.getStatus();
+    case "assistant.proposeProjectBreakdown":
+      return features.assistant.proposeProjectBreakdown(arg<string>(args, 0));
+    case "assistant.suggestInboxItem":
+      return features.assistant.suggestInboxItem(arg<string>(args, 0));
     case "breakdown.breakDown":
       return features.breakdown.breakDown(arg<BreakdownRequest>(args, 0));
     case "calendar.disconnect":

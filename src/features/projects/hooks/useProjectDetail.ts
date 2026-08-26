@@ -104,6 +104,7 @@ function useProjectDetail(
     isLoading,
     isSaving,
     notFound,
+    reload,
     groupTask: (taskId: string, milestoneId: string | null) =>
       run(
         () => projects.groupTask(projectId, taskId, milestoneId),

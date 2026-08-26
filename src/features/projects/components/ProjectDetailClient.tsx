@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { PageStatus } from "@/components/ui/PageStatus";
 import { ProjectDetail } from "@/features/projects/components/ProjectDetail";
+import { AIProjectAssistant } from "@/features/projects/components/AIProjectAssistant";
 import { useProjectDetail } from "@/features/projects/hooks/useProjectDetail";
 import { useFeatures } from "@/features/FeatureProvider";
 
@@ -46,6 +47,12 @@ function ProjectDetailClient({ projectId }: ProjectDetailClientProps) {
 
   return (
     <ProjectDetail
+      assistant={
+        <AIProjectAssistant
+          onAccepted={workspace.reload}
+          projectId={projectId}
+        />
+      }
       announcement={workspace.announcement}
       areas={workspace.data.areas}
       detail={workspace.data.detail}

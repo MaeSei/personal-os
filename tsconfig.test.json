@@ -27,6 +27,8 @@
     "src/application/AnalyticsService.ts",
     "src/application/PatternService.ts",
     "src/application/RecommendationService.ts",
+    "src/application/AssistantService.ts",
+    "src/application/MemoryService.ts",
     "src/ai/**/*.ts",
     "src/calendar/**/*.ts",
     "src/domain/**/*.ts",

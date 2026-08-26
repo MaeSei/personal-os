@@ -73,6 +73,7 @@ test("ApplicationContainer exposes feature contracts and hides construction", as
   assert.equal(captured.status, Status.Inbox);
   assert.deepEqual(Object.keys(container.features).sort(), [
     "areas",
+    "assistant",
     "breakdown",
     "calendar",
     "focus",

@@ -1,4 +1,6 @@
 import { AreaService } from "./AreaService";
+import { AnalyticsService } from "./AnalyticsService";
+import { AssistantService } from "./AssistantService";
 import { CalendarService } from "./CalendarService";
 import { ManualBreakdownService } from "./BreakdownService";
 import { FocusService } from "./FocusService";
@@ -8,6 +10,7 @@ import {
   type MissionControlContext,
 } from "./MissionControlService";
 import { PlannerService } from "./PlannerService";
+import { PatternService } from "./PatternService";
 import { ProjectService } from "./ProjectService";
 import { ReviewService } from "./ReviewService";
 import { TaskService } from "./TaskService";
@@ -24,8 +27,12 @@ import type { CalendarOAuthFeature } from "@/features/contracts/CalendarFeature"
 import type { RepositorySet } from "@/repositories/RepositoryFactory";
 import type { CalendarSyncProvider } from "@/calendar";
 import type { TokenCipher } from "@/server/security/TokenCipher";
+import type { AIService } from "@/ai";
 
 type ServiceContainerOptions = {
+  readonly aiModel?: string | null;
+  readonly aiProvider?: string | null;
+  readonly aiService?: AIService | null;
   readonly calendarProvider: CalendarSyncProvider | null;
   readonly calendarTokenCipher: TokenCipher | null;
   readonly createId: () => string;
@@ -63,6 +70,17 @@ class ServiceContainer {
     );
     const availability = new AvailabilityService();
     const planningRules = new PlanningRulesEngine();
+    const analytics = new AnalyticsService(
+      repositories.reviews,
+      repositories.wrapUps,
+      repositories.items,
+      () => options.missionControlContext.now ?? new Date(),
+    );
+    const patterns = new PatternService(
+      analytics,
+      repositories.reviews,
+      repositories.wrapUps,
+    );
     const tasks = new TaskService(
       repositories.items,
       repositories.areas,
@@ -77,6 +95,22 @@ class ServiceContainer {
 
     this.features = {
       areas: new AreaService(repositories.areas),
+      assistant: new AssistantService(
+        repositories.items,
+        repositories.areas,
+        repositories.reviews,
+        repositories.wrapUps,
+        calendar,
+        analytics,
+        patterns,
+        {
+          ai: options.aiService ?? null,
+          createId: options.createId,
+          model: options.aiModel ?? null,
+          provider: options.aiProvider ?? null,
+          timeZone: options.missionControlContext.timeZone,
+        },
+      ),
       breakdown: new ManualBreakdownService(projects),
       calendar,
       focus: new FocusService(

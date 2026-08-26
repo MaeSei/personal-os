@@ -1,20 +1,37 @@
-import type { AnalyticsReport, Pattern } from "@/domain";
-import type { AISuggestion } from "./types";
+import type {
+  AnalyticsReport,
+  DailyReviewResult,
+  DailyWrapUp,
+  Pattern,
+} from "@/domain";
 
 type ReflectionRequest = {
   readonly analytics: AnalyticsReport;
-  readonly notes: string | null;
   readonly patterns: readonly Pattern[];
+  readonly reviews: readonly DailyReviewResult[];
+  readonly wrapUps: readonly DailyWrapUp[];
 };
 
 type ReflectionObservation = {
+  readonly confidence: number;
   readonly evidence: readonly string[];
   readonly summary: string;
 };
 
-/** Returns optional observations without modifying Review history. */
+type ReflectionResult = {
+  readonly learnings: readonly ReflectionObservation[];
+  readonly reflections: readonly ReflectionObservation[];
+  readonly suggestions: readonly ReflectionObservation[];
+};
+
+/** Returns observations only; it cannot modify Reviews or plans. */
 interface ReflectionService {
-  reflect(request: ReflectionRequest): Promise<readonly AISuggestion<ReflectionObservation>[]>;
+  reflect(request: ReflectionRequest): Promise<ReflectionResult>;
 }
 
-export type { ReflectionObservation, ReflectionRequest, ReflectionService };
+export type {
+  ReflectionObservation,
+  ReflectionRequest,
+  ReflectionResult,
+  ReflectionService,
+};

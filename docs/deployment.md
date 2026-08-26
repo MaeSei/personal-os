@@ -42,11 +42,18 @@ opens onboarding because it finds no Areas.
 | `GOOGLE_CALENDAR_CLIENT_SECRET` | For Calendar | Server runtime | Confidential OAuth client secret; never expose with `NEXT_PUBLIC_`. |
 | `GOOGLE_CALENDAR_REDIRECT_URI` | For Calendar | Server runtime | Exact registered callback, normally `https://YOUR_DOMAIN/api/calendar/google/callback`. |
 | `CALENDAR_TOKEN_ENCRYPTION_KEY` | For Calendar | Server runtime | Base64-encoded 32-byte key for AES-256-GCM refresh-token encryption. |
+| `OPENAI_API_KEY` | For Atlas AI | Server runtime | OpenAI API credential used only by the server-side Responses adapter. |
+| `OPENAI_MODEL` | For Atlas AI | Server runtime | Explicit model ID for structured AI proposals; Atlas has no silent default. |
 | `PORT` | Railway-managed | Runtime | Port read by the standalone Next.js server. |
 | `HOSTNAME` | Script-managed | Runtime | Fixed to `0.0.0.0` so Railway health checks can reach the process. |
 
 Database URLs and future secrets must never use a `NEXT_PUBLIC_` prefix. Only
 safe public values may enter the browser bundle.
+
+Atlas AI is disabled unless both `OPENAI_API_KEY` and `OPENAI_MODEL` are
+present. Keep both on the Atlas Railway service and never prefix either with
+`NEXT_PUBLIC_`. AI responses are requested with provider storage disabled and
+no tools. Removing either variable restores the complete manual product path.
 
 Prisma CLI configuration prefers `DIRECT_URL` when present. The running
 application always uses `DATABASE_URL` through the PostgreSQL driver adapter.

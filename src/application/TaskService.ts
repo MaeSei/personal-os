@@ -3,9 +3,11 @@ import {
   convertTaskToProject,
   createTask as createDomainTask,
   findTask,
+  getTaskDependencyIds,
   getProjectForItem,
   insertTaskIntoItems,
   isProject,
+  isTask,
   removeTaskFromItems,
   reorderProjectTasks,
   replaceTaskInItems,
@@ -30,6 +32,10 @@ function containsId(items: readonly Item[], id: string): boolean {
   return items.some(
     (item) => item.id === id || containsId(item.children, id),
   );
+}
+
+function flattenItems(items: readonly Item[]): readonly Item[] {
+  return items.flatMap((item) => [item, ...flattenItems(item.children)]);
 }
 
 function taskWriteInput(task: Task, assignment?: TaskAssignmentInput): TaskWriteInput {
@@ -81,7 +87,16 @@ class TaskService implements TaskFeature {
     return {
       area: areas.find(({ id }) => id === task.areaId) ?? null,
       areas,
-      dependencies: [],
+      dependencies: getTaskDependencyIds(task).flatMap((dependencyId) => {
+        const dependency = flattenItems(items).find(
+          (item): item is Task => isTask(item) && item.id === dependencyId,
+        );
+        return dependency ? [{
+          id: dependency.id,
+          status: dependency.status,
+          title: dependency.title,
+        }] : [];
+      }),
       history,
       notes: [],
       project,
