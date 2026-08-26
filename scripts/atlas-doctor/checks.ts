@@ -966,7 +966,7 @@ async function connectionAndDatabaseSections(
         "Tasks",
         "items",
         ' WHERE "type" = $1',
-        ["Task"],
+        ["TASK"],
       ),
       databaseCountCheck(
         client,

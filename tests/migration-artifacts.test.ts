@@ -107,19 +107,48 @@ test("the Morning Workflow migration preserves accepted plans", () => {
 });
 
 test("the Context Engine migration backfills and can roll back Task contexts", () => {
+  const repairName = "20260825185000_item_type_task_compatibility_repair";
+  const contextName = "20260825190000_context_engine";
+  const repairDirectory = path.join(
+    process.cwd(),
+    "prisma/migrations",
+    repairName,
+  );
   const directory = path.join(
     process.cwd(),
-    "prisma/migrations/20260825190000_context_engine",
+    "prisma/migrations",
+    contextName,
+  );
+  const repair = readFileSync(
+    path.join(repairDirectory, "migration.sql"),
+    "utf8",
   );
   const migration = readFileSync(path.join(directory, "migration.sql"), "utf8");
   const rollback = readFileSync(path.join(directory, "down.sql"), "utf8");
 
+  assert.ok(repairName < contextName);
+  assert.match(repair, /^BEGIN;/m);
+  assert.match(repair, /CARDINALITY\("contexts"\) > 0/);
+  assert.match(repair, /DROP COLUMN "contexts"/);
+  assert.match(repair, /RENAME VALUE ''Task'' TO ''TASK''/);
+  assert.match(repair, /^COMMIT;/m);
   assert.match(migration, /ADD COLUMN "contexts" TEXT\[\]/);
   assert.match(migration, /"preferred_context"/);
   assert.match(migration, /"context"/);
+  assert.match(migration, /WHERE "type" = 'TASK'/);
   assert.doesNotMatch(migration, /\bINSERT\s+INTO\b/i);
   assert.match(rollback, /"contexts"\[1\]/);
   assert.match(rollback, /DROP COLUMN IF EXISTS "contexts"/);
+});
+
+test("Prisma keeps the Task API name while mapping the repaired database label", () => {
+  const schema = readFileSync(
+    path.join(process.cwd(), "prisma/schema.prisma"),
+    "utf8",
+  );
+
+  assert.match(schema, /Task\s+@map\("TASK"\)/);
+  assert.match(schema, /@@map\("item_type"\)/);
 });
 
 test("the Effort Model migration adds confidence without inventing history", () => {

@@ -16,7 +16,7 @@ enum AreaColor {
 }
 
 enum ItemType {
-  Task
+  Task      @map("TASK")
   Project
   Workflow
   Reference
